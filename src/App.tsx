@@ -5,9 +5,11 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const API_URL = import.meta.env.VITE_API_URL as string;
+
   useEffect(() => {
     // Quando o componente montar, faz a requisição ao endpoint
-    fetch("http://127.0.0.1:8000/ping")
+    fetch(`${API_URL}ping`)
       .then((res) => {
         if (!res.ok) {
           throw new Error(`Status ${res.status}`);
