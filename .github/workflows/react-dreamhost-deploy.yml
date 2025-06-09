@@ -70,3 +70,6 @@ jobs:
 
             # remove the old backup
             rm -rf /home/dh_jirb5e/vittoretti.com/roadmap/app_old
+
+            # remove the temp directory
+            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp
