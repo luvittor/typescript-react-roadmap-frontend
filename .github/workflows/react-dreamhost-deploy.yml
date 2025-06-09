@@ -48,7 +48,7 @@ jobs:
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
-          source: "dist/*"
+          source: "dist/"
           target: "/home/dh_jirb5e/vittoretti.com_roadmap_app_tmp"
 
       - name: Swap temp into place and clean up
@@ -66,7 +66,7 @@ jobs:
             mv /home/dh_jirb5e/vittoretti.com/roadmap/app /home/dh_jirb5e/vittoretti.com/roadmap/app_old 2>/dev/null || true
 
             # move new build into place
-            mv /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp /home/dh_jirb5e/vittoretti.com/roadmap/app
+            mv /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/dist /home/dh_jirb5e/vittoretti.com/roadmap/app
 
             # remove the old backup
             rm -rf /home/dh_jirb5e/vittoretti.com/roadmap/app_old
