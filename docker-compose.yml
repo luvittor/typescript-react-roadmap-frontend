@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  frontend:
+    # Build using the development Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+
+    # Mount the local directory into the container for instant hot-reload
+    volumes:
+      - ./:/app
+      # Keep node_modules inside the container to avoid host/container conflicts
+      - /app/node_modules
+
+    # Map container port 5173 (Vite) to the host
+    ports:
+      - "5173:5173"
+
+    # Use polling for file watching (helpful on some OSes)
+    command:
+      - npm
+      - run
+      - dev
+      - --
+      - --host
+      - "0.0.0.0"
+      - --force

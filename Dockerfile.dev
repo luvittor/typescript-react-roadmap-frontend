@@ -1,0 +1,20 @@
+# 1. Use a lightweight Node.js base image
+FROM node:18-alpine
+
+# 2. Set the working directory inside the container
+WORKDIR /app
+
+# 3. Copy dependency definitions for caching
+COPY package*.json ./
+
+# 4. Install project dependencies
+RUN npm install
+
+# 5. Copy all application source code
+COPY . .
+
+# 6. Expose Vite’s development server port
+EXPOSE 5173
+
+# 7. Launch the Vite dev server, binding to all network interfaces
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
