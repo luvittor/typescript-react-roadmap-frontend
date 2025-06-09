@@ -48,7 +48,7 @@ jobs:
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
-          source: "dist/"
+          source: "dist/*"
           target: "/home/dh_jirb5e/vittoretti.com_roadmap_app_tmp"
 
       - name: Swap temp into place and clean up
@@ -59,23 +59,6 @@ jobs:
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
           script: |
-            # cleanup unnecessary files and directories from temp directory
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/.git  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/.github  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/.gitignore  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/README*  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/LICENSE*  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/*.md
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/.env*
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/src  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/public  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/node_modules  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/package*.json  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/vite.config.ts  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/tsconfig*.json  
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_api_tmp/docker-compose.yml
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/Dockerfile*
-
             # ensure target folder exists
             mkdir -p /home/dh_jirb5e/vittoretti.com/roadmap
 
