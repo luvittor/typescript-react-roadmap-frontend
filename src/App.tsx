@@ -25,7 +25,7 @@ export default function App() {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [API_URL]);
 
   return (
     <div style={{ padding: 20 }}>

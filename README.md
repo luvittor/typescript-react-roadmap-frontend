@@ -8,20 +8,20 @@ cd typescript-react-roadmap-frontend
 cp .env.example .env
 ```
 
-Set the environment variables in `.env` file.
+Edit `.env` and set the variables defined inside. Only `VITE_API_URL` is required and should point to the [php-laravel-roadmap-backend](https://github.com/luvittor/php-laravel-roadmap-backend) project API.
 
 Choose one of the following methods to run the project:
 
 ### No-Container
 
-Node version is in `.nvmrc` file.
+Use Node `20.14.0` (see `.nvmrc`).
 
 ```bash
 npm ci
 npm run dev
 ```
 
-## Container
+### Container
 
 ```bash
 docker-compose up --build
@@ -29,11 +29,18 @@ docker-compose up --build
 
 ## Production Environment Install
 
+For a production build run:
+
+```bash
+npm run build
+npm run preview # serves the production build locally
+```
+
 ### Github Actions Deploy to Dreamhost
 
-Deploys needs these variables to be s:
+Deployment needs these variables to be set:
 
- - vars.VITE_API_URL: URL to backend API.
+ - vars.VITE_API_URL: URL to [php-laravel-roadmap-backend](https://github.com/luvittor/php-laravel-roadmap-backend) project API.
  - secrets.SFTP_HOST: Dreamhost SFTP host for deployment.
  - secrets.SFTP_USERNAME: Dreamhost SFTP username for deployment.
  - secrets.SFTP_PASSWORD: Dreamhost SFTP password for deployment.
