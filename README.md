@@ -24,7 +24,7 @@ npm run dev
 ### Container
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ## Production Environment Install
@@ -33,10 +33,13 @@ For a production build run:
 
 ```bash
 npm run build
-npm run preview # serves the production build locally
+# serves the production build locally
+npm run preview
 ```
 
-### Github Actions Deploy to Dreamhost
+## Github Actions
+
+### Deploy to Dreamhost
 
 Deployment needs these variables to be set:
 
@@ -44,3 +47,28 @@ Deployment needs these variables to be set:
  - secrets.SFTP_HOST: Dreamhost SFTP host for deployment.
  - secrets.SFTP_USERNAME: Dreamhost SFTP username for deployment.
  - secrets.SFTP_PASSWORD: Dreamhost SFTP password for deployment.
+
+### Lint, Test and Audit
+
+These actions run on every push.
+
+## Commands Available
+
+```bash
+# run code linter
+npm run lint
+# fix lint issues
+npm run lint:fix
+# run unit tests
+npm run test
+# run dependency audit
+npm audit
+# fix audit issues
+npm audit fix --force
+```
+
+If you want to run any of these commands inside the container, you can use for example:
+
+```bash
+docker compose exec typescript-react-roadmap-frontend npm run lint
+```
