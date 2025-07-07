@@ -1,16 +1,37 @@
+const BASE_URL = import.meta.env.VITE_API_URL as string | undefined;
+
+function buildUrl(path: string): string {
+  if (!BASE_URL) {
+    throw new Error("VITE_API_URL is not defined");
+  }
+  const normalizedBase = BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`;
+  return `${normalizedBase}${path.replace(/^\//, "")}`;
+}
+
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const baseUrl = import.meta.env.VITE_API_URL as string;
-  const response = await fetch(`${baseUrl}${path}`, options);
+  const response = await fetch(buildUrl(path), options);
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text}`);
   }
   try {
-    return await response.json() as T;
+    return (await response.json()) as T;
   } catch {
-    throw new Error('Invalid JSON response');
+    throw new Error("Invalid JSON response");
   }
 }
 
 export function get<T>(path: string): Promise<T> {
   return request<T>(path);
 }
+
+export function post<T>(path: string, body: unknown, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options.headers },
+    body: JSON.stringify(body),
+    ...options,
+  });
+}
+
+export { buildUrl };

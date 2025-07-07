@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { get } from "./api/client";
+import { get } from "./api";
 
 export default function App() {
   const [response, setResponse] = useState<string | null>(null);
