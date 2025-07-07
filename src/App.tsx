@@ -1,21 +1,13 @@
 import { useEffect, useState } from "react";
+import { ping } from "./services/roadmap";
 
 export default function App() {
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL as string;
-
   useEffect(() => {
-    // Quando o componente montar, faz a requisição ao endpoint
-    fetch(`${API_URL}ping`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Status ${res.status}`);
-        }
-        return res.text();
-      })
+    ping()
       .then((text) => {
         setResponse(text);
       })
@@ -25,7 +17,7 @@ export default function App() {
       .finally(() => {
         setLoading(false);
       });
-  }, [API_URL]);
+  }, []);
 
   return (
     <div style={{ padding: 20 }}>
