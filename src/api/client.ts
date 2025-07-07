@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL as string | undefined;
+const BASE_URL = import.meta.env.VITE_API_URL as string;
 
 function buildUrl(path: string): string {
   if (!BASE_URL) {
@@ -14,15 +14,22 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     const text = await response.text();
     throw new Error(`HTTP ${response.status}: ${text}`);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
   try {
-    return (await response.json()) as T;
+    return JSON.parse(text) as T;
   } catch {
     throw new Error("Invalid JSON response");
   }
 }
 
-export function get<T>(path: string): Promise<T> {
-  return request<T>(path);
+export function get<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, options);
 }
 
 export function post<T>(path: string, body: unknown, options: RequestInit = {}): Promise<T> {
@@ -48,6 +55,15 @@ export function del<T>(path: string, options: RequestInit = {}): Promise<T> {
     method: "DELETE",
     ...options,
   });
+}
+
+export async function getText(path: string, options: RequestInit = {}): Promise<string> {
+  const response = await fetch(buildUrl(path), options);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text}`);
+  }
+  return response.text();
 }
 
 export { buildUrl };
