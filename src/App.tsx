@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { get } from "./api";
+import { ping } from "./services/roadmap";
 
 export default function App() {
   const [response, setResponse] = useState<string | null>(null);
@@ -7,9 +7,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    get<{ message: string }>("ping")
-      .then((data) => {
-        setResponse(data.message);
+    ping()
+      .then((text) => {
+        setResponse(text);
       })
       .catch((err) => {
         setError(err.message);

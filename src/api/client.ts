@@ -1,4 +1,4 @@
-const BASE_URL = (import.meta as any)?.env?.VITE_API_URL ?? (process.env.VITE_API_URL as string | undefined);
+const BASE_URL = import.meta.env.VITE_API_URL as string;
 
 function buildUrl(path: string): string {
   if (!BASE_URL) {
