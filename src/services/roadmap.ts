@@ -5,7 +5,7 @@ export interface RegisterResponse {
   user: { id: number; email: string };
 }
 
-export interface LoginResponse extends RegisterResponse {}
+export type LoginResponse = RegisterResponse;
 
 export interface UserResponse {
   id: number;

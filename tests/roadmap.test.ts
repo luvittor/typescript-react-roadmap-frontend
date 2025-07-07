@@ -26,7 +26,7 @@ test('run full service flow', async () => {
   ];
 
   const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(responses.shift()!));
-  // @ts-ignore
+  
   global.fetch = fetchMock;
 
   expect(await svc.ping()).toBe('pong');
