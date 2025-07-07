@@ -34,4 +34,20 @@ export function post<T>(path: string, body: unknown, options: RequestInit = {}):
   });
 }
 
+export function patch<T>(path: string, body: unknown, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options.headers },
+    body: JSON.stringify(body),
+    ...options,
+  });
+}
+
+export function del<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, {
+    method: "DELETE",
+    ...options,
+  });
+}
+
 export { buildUrl };
