@@ -2,6 +2,10 @@ name: Audit React Application
 
 on:
   push:
+  schedule:
+    # Every Monday at midnight (UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
 
 jobs:
   audit:
