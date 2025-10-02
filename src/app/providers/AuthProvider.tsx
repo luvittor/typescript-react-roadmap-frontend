@@ -5,12 +5,10 @@ import { authApi } from "../../features/auth/api";
 import { useAuthStore } from "../../store/auth-store";
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { token, hydrate, isHydrated, setUser } = useAuthStore((state) => ({
-    token: state.token,
-    hydrate: state.hydrate,
-    isHydrated: state.isHydrated,
-    setUser: state.setUser,
-  }));
+  const token = useAuthStore((state) => state.token);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
+  const hydrate = useAuthStore((state) => state.hydrate);
+  const setUser = useAuthStore((state) => state.setUser);
 
   useEffect(() => {
     hydrate();

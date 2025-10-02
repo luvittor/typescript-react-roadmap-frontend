@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useEffect } from "react";
 
 import { LoginForm } from "./features/auth/components/LoginForm";
 import { RegisterForm } from "./features/auth/components/RegisterForm";
@@ -20,7 +19,7 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => (
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="flex min-h-screen flex-col bg-background text-foreground">
     <header className="flex items-center justify-between border-b border-border px-6 py-4">
-      <span className="text-lg font-semibold">Monthly Roadmap</span>
+      <span className="text-lg font-semibold">Roadmap</span>
       <LogoutButton />
     </header>
     <main className="flex flex-1 flex-col px-6 py-6">{children}</main>
@@ -39,10 +38,8 @@ const LogoutButton = () => {
 };
 
 const RequireAuth = ({ children }: { children: React.ReactNode }) => {
-  const { token, isHydrated } = useAuthStore((state) => ({
-    token: state.token,
-    isHydrated: state.isHydrated,
-  }));
+  const token = useAuthStore((state) => state.token);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
 
   if (!isHydrated) {
     return (
@@ -60,10 +57,8 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
 };
 
 const RedirectIfAuthed = ({ children }: { children: React.ReactNode }) => {
-  const { token, isHydrated } = useAuthStore((state) => ({
-    token: state.token,
-    isHydrated: state.isHydrated,
-  }));
+  const token = useAuthStore((state) => state.token);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
 
   if (!isHydrated) {
     return null;
@@ -77,12 +72,6 @@ const RedirectIfAuthed = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const App = () => {
-  const hydrate = useAuthStore((state) => state.hydrate);
-
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
   return (
     <>
       <Routes>
@@ -92,7 +81,7 @@ export const App = () => {
             <RedirectIfAuthed>
               <AuthLayout>
                 <div className="mb-6 space-y-2 text-center">
-                  <h1 className="text-2xl font-semibold">Welcome back</h1>
+                  <h1 className="text-2xl font-semibold">Welcome</h1>
                   <p className="text-sm text-muted-foreground">Sign in to access your roadmap.</p>
                 </div>
                 <LoginForm />

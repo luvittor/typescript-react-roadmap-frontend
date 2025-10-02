@@ -1,4 +1,5 @@
-import { DndContext, DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useMemo, useState } from "react";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -142,7 +143,6 @@ export const Board = () => {
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Monthly Roadmap</h1>
           <p className="text-sm text-muted-foreground">
             Track and move work across months. Drag cards or use keyboard shortcuts (space + arrows).
           </p>
