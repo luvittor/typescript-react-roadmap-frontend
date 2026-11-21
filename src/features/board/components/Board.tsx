@@ -1,6 +1,6 @@
 import { DndContext } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QueryClient, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -16,6 +16,41 @@ const OverlayCard = ({ card }: { card: Card }) => (
     <p className="text-xs text-muted-foreground capitalize">{card.status.replace("_", " ")}</p>
   </div>
 );
+
+export const isNearMonthStripEnd = ({
+  scrollLeft,
+  clientWidth,
+  scrollWidth,
+}: Pick<HTMLElement, "scrollLeft" | "clientWidth" | "scrollWidth">) =>
+  scrollLeft + clientWidth >= scrollWidth - 500;
+
+const MonthQueryColumn = ({
+  month,
+  isCurrent,
+  isMoving,
+  movingCardId,
+}: {
+  month: MonthKey;
+  isCurrent: boolean;
+  isMoving: boolean;
+  movingCardId: number | null;
+}) => {
+  const query = useMonthCards(month.year, month.month);
+  return (
+    <MonthColumn
+      year={month.year}
+      month={month.month}
+      column={query.data?.column}
+      cards={query.data?.cards ?? []}
+      isLoading={query.isLoading}
+      isError={query.isError}
+      onRetry={() => void query.refetch()}
+      isCurrent={isCurrent}
+      isMoving={isMoving}
+      movingCardId={movingCardId}
+    />
+  );
+};
 
 export const createHandleDragEnd = ({
   queryClient,
@@ -86,7 +121,7 @@ export const createHandleDragEnd = ({
         const withoutCard = sortedFrom.filter((card) => card.id !== activeData.card.id);
         const updatedFrom = withoutCard.map((card, index) => ({ ...card, order: index + 1 }));
 
-        const insertedCard = { ...activeData.card, column_id: toData.column.id };
+        const insertedCard = { ...activeData.card, column_id: toData.column?.id ?? activeData.card.column_id };
         const before = sortedTo.slice(0, overIndex);
         const after = sortedTo.slice(overIndex);
         const updatedTo = [...before, insertedCard, ...after].map((card, index) => ({
@@ -135,9 +170,13 @@ export const isUnchangedDrop = (event: DragEndEvent, queryClient: QueryClient) =
 };
 
 export const Board = () => {
-  const start = useMemo(() => new Date(), []);
-  const months = useMemo<MonthKey[]>(() => getConsecutiveMonths(start, 4), [start]);
-  const monthQueries = months.map(({ year, month }) => useMonthCards(year, month));
+  const [months, setMonths] = useState<MonthKey[]>(() => getConsecutiveMonths(new Date(), 6));
+  const monthStripRef = useRef<HTMLDivElement | null>(null);
+  const lastExpandedFrom = useRef<MonthKey | null>(null);
+  const current = months.find(({ year, month }) => {
+    const now = new Date();
+    return year === now.getFullYear() && month === now.getMonth() + 1;
+  });
   const sensors = useBoardSensors();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -146,6 +185,30 @@ export const Board = () => {
   const moveInProgress = useRef(false);
   const queryClient = useQueryClient();
   const { mutateAsync: moveCardMutation } = useMoveCard();
+
+  const loadEarlierMonths = () => {
+    const first = months[0];
+    if (!first) return;
+    const earlier = getConsecutiveMonths(new Date(first.year, first.month - 1 - 6, 1), 6);
+    setMonths((existing) => [...earlier, ...existing]);
+  };
+
+  const handleMonthScroll = useCallback(() => {
+    const strip = monthStripRef.current;
+    const last = months[months.length - 1];
+    if (!strip || !last || strip.clientWidth === 0 || strip.scrollWidth === 0 || !isNearMonthStripEnd(strip)) return;
+    if (lastExpandedFrom.current?.year === last.year && lastExpandedFrom.current.month === last.month) return;
+    const later = getConsecutiveMonths(new Date(last.year, last.month, 1), 3);
+    lastExpandedFrom.current = last;
+    setMonths((existing) => [...existing, ...later]);
+  }, [months]);
+
+  useEffect(() => {
+    const checkMonthStrip = () => handleMonthScroll();
+    checkMonthStrip();
+    window.addEventListener("resize", checkMonthStrip);
+    return () => window.removeEventListener("resize", checkMonthStrip);
+  }, [handleMonthScroll]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as { card: Card } | undefined;
@@ -185,23 +248,19 @@ export const Board = () => {
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex min-h-[calc(100vh-9rem)] gap-0 overflow-x-auto border-y border-border/70 pb-4 [scrollbar-width:thin]">
-          {months.map(({ year, month }, index) => {
-            const query = monthQueries[index];
-            const data = query.data;
-            return (
-              <MonthColumn
-                key={`${year}-${month}`}
-                year={year}
-                month={month}
-                column={data?.column}
-                cards={data?.cards ?? []}
-                isLoading={query.isLoading}
-                isMoving={isMoving || isCreating}
-                movingCardId={movingCardId}
-              />
-            );
-          })}
+        <button type="button" onClick={loadEarlierMonths} className="mx-5 w-fit rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground sm:mx-8">
+          Load earlier months
+        </button>
+        <div data-testid="month-strip" ref={monthStripRef} onScroll={handleMonthScroll} className="flex min-h-[calc(100vh-9rem)] items-stretch gap-0 overflow-x-auto border-y border-border/70 pb-4 [scrollbar-width:thin]">
+          {months.map((month) => (
+            <MonthQueryColumn
+              key={`${month.year}-${month.month}`}
+              month={month}
+              isCurrent={month === current}
+              isMoving={isMoving || isCreating}
+              movingCardId={movingCardId}
+            />
+          ))}
         </div>
 
         <DragOverlay>{activeCard ? <OverlayCard card={activeCard} /> : null}</DragOverlay>

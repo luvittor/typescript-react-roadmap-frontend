@@ -4,7 +4,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
-import { Board, createHandleDragEnd, isUnchangedDrop } from "../src/features/board/components/Board";
+import { Board, createHandleDragEnd, isNearMonthStripEnd, isUnchangedDrop } from "../src/features/board/components/Board";
 import { renderWithProviders, resetAuthStore } from "./test-utils";
 import { useAuthStore } from "../src/store/auth-store";
 import { cardsKey } from "../src/features/board/hooks/useBoard";
@@ -43,6 +43,45 @@ describe("Board", () => {
     useAuthStore.setState({ token: "token", user: { id: 1, email: "user@example.com" }, isHydrated: true });
   });
 
+  it("loads more months when the strip is near its end or already fits the viewport", () => {
+    expect(isNearMonthStripEnd({ scrollLeft: 0, clientWidth: 2600, scrollWidth: 2040 })).toBe(true);
+    expect(isNearMonthStripEnd({ scrollLeft: 0, clientWidth: 1200, scrollWidth: 2040 })).toBe(false);
+    expect(isNearMonthStripEnd({ scrollLeft: 400, clientWidth: 1200, scrollWidth: 2040 })).toBe(true);
+  });
+
+  it("automatically loads additional months when the viewport is wider than the initial strip", async () => {
+    const previousClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    const previousScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.dataset.testid === "month-strip" ? 2600 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.dataset.testid === "month-strip" ? this.childElementCount * 340 : 0;
+      },
+    });
+
+    try {
+      getCardsMock.mockImplementation(async (year: number, month: number) => ({
+        column: { id: year * 10 + month, year, month, user_id: 1 },
+        cards: [],
+      }));
+
+      renderWithProviders(<Board />, { route: "/board" });
+
+      await waitFor(() => expect(screen.getAllByRole("region")).toHaveLength(12));
+    } finally {
+      if (previousClientWidth) Object.defineProperty(HTMLElement.prototype, "clientWidth", previousClientWidth);
+      else Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
+      if (previousScrollWidth) Object.defineProperty(HTMLElement.prototype, "scrollWidth", previousScrollWidth);
+      else Reflect.deleteProperty(HTMLElement.prototype, "scrollWidth");
+    }
+  });
+
   it("recognizes a drop back in the same position without blocking real moves", () => {
     const client = new QueryClient();
     const first: Card = { id: 1, column_id: 10, order: 1, title: "First", status: "not_started" };
@@ -58,8 +97,8 @@ describe("Board", () => {
     expect(isUnchangedDrop(event(first, { year: 2025, month: 11 }), client)).toBe(false);
   });
 
-  it("renders four months and card titles", async () => {
-    const months = getConsecutiveMonths(new Date(), 4);
+  it("renders six months and card titles", async () => {
+    const months = getConsecutiveMonths(new Date(), 6);
     const cardsByMonth: Record<string, Card[]> = {
       [`${months[0].year}-${months[0].month}`]: [
         { id: 1, column_id: 110, order: 1, title: "Card A", status: "not_started" },

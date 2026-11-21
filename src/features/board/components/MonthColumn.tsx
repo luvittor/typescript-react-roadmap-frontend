@@ -16,14 +16,20 @@ export const MonthColumn = ({
   isLoading,
   isMoving,
   movingCardId,
+  isCurrent,
+  isError,
+  onRetry,
 }: {
-  column?: Column;
+  column?: Column | null;
   cards: Card[];
   year: number;
   month: number;
   isLoading: boolean;
   isMoving: boolean;
   movingCardId: number | null;
+  isCurrent: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) => {
   const monthLabel = useMemo(() => formatMonthLabel({ year, month }), [year, month]);
   const { active, over } = useDndContext();
@@ -38,14 +44,19 @@ export const MonthColumn = ({
     <section
       ref={setNodeRef}
       aria-labelledby={`column-${year}-${month}`}
-      className={`flex w-[min(340px,86vw)] flex-none self-stretch flex-col gap-3 border-r border-border/70 px-4 py-4 transition-colors sm:px-5 ${isTarget ? "bg-primary/10 ring-2 ring-inset ring-primary" : "bg-transparent"}`}
+      className={`flex w-[min(340px,86vw)] flex-none self-stretch flex-col gap-3 border-r border-border/70 px-4 py-4 transition-colors sm:px-5 ${isTarget ? "bg-primary/10 ring-2 ring-inset ring-primary" : isCurrent ? "bg-accent/30" : "bg-transparent"}`}
     >
       <div className="flex min-h-12 items-center">
-        <h2 id={`column-${year}-${month}`} className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h2 id={`column-${year}-${month}`} className={`text-3xl font-semibold tracking-tight sm:text-4xl ${isCurrent ? "text-primary" : ""}`}>
           {monthLabel}
         </h2>
       </div>
-      {isLoading ? (
+      {isError ? (
+        <div className="rounded-md border border-destructive/40 p-3 text-sm text-muted-foreground">
+          <p>Could not load this month.</p>
+          <button type="button" onClick={onRetry} className="mt-1 underline">Try again</button>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, index) => (
             <Skeleton key={index} className="h-20 w-full" />
@@ -73,7 +84,7 @@ export const MonthColumn = ({
           </ol>
         </ColumnSortableContext>
       )}
-      {column && <AddCardForm column={column} year={year} month={month} />}
+      <AddCardForm column={column} year={year} month={month} />
     </section>
   );
 };

@@ -5,6 +5,10 @@ import type { CardStatus } from "../../utils/status";
 const basePath = "/api/v1";
 
 export const boardApi = {
+  ensureColumn: async (year: number, month: number) => {
+    const { data } = await api.post<Column>(`${basePath}/columns/${year}/${month}`);
+    return data;
+  },
   getCards: async (year: number, month: number) => {
     const { data } = await api.get<ColumnCardsResponse>(
       `${basePath}/columns/${year}/${month}/cards`,

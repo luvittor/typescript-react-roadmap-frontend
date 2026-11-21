@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const { useDroppableMock } = vi.hoisted(() => ({ useDroppableMock: vi.fn() }));
@@ -21,10 +21,11 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
 });
 
 import { MonthColumn } from "../src/features/board/components/MonthColumn";
+import { renderWithProviders } from "./test-utils";
 
 describe("MonthColumn drop target", () => {
   it("attaches the month drop target to the full-height column, not only the card list", () => {
-    render(
+    renderWithProviders(
       <MonthColumn
         year={2026}
         month={11}
@@ -32,6 +33,9 @@ describe("MonthColumn drop target", () => {
         isLoading={false}
         isMoving={false}
         movingCardId={null}
+        isCurrent
+        isError={false}
+        onRetry={() => {}}
       />,
     );
 

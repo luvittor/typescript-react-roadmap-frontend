@@ -6,8 +6,7 @@ export type MonthKey = {
 export const getConsecutiveMonths = (start: Date, count: number): MonthKey[] => {
   const months: MonthKey[] = [];
   for (let i = 0; i < count; i += 1) {
-    const date = new Date(start);
-    date.setMonth(start.getMonth() + i);
+    const date = new Date(start.getFullYear(), start.getMonth() + i, 1);
     months.push({ year: date.getFullYear(), month: date.getMonth() + 1 });
   }
   return months;

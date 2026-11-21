@@ -15,6 +15,11 @@ export const useMonthCards = (year: number, month: number) =>
     queryFn: () => boardApi.getCards(year, month),
   });
 
+export const useEnsureMonthColumn = () =>
+  useMutation({
+    mutationFn: ({ year, month }: { year: number; month: number }) => boardApi.ensureColumn(year, month),
+  });
+
 export const useCreateCard = (year: number, month: number) => {
   const queryClient = useQueryClient();
 

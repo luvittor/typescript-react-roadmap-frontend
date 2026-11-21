@@ -25,6 +25,6 @@ export interface CardWithColumn extends Card {
 }
 
 export interface ColumnCardsResponse {
-  column: Column;
+  column: Column | null;
   cards: Card[];
 }
