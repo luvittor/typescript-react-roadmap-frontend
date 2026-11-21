@@ -18,11 +18,11 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => (
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="flex min-h-screen flex-col bg-background text-foreground">
-    <header className="flex items-center justify-between border-b border-border px-6 py-4">
+    <header className="flex items-center justify-between border-b border-border px-5 py-3 sm:px-8">
       <span className="text-lg font-semibold">Roadmap</span>
       <LogoutButton />
     </header>
-    <main className="flex flex-1 flex-col px-6 py-6">{children}</main>
+    <main className="flex flex-1 flex-col px-0 py-4 sm:py-6">{children}</main>
   </div>
 );
 

@@ -15,13 +15,10 @@ const THEME_KEY = "monthly-roadmap-theme";
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
+    if (typeof window === "undefined") return "dark";
     const stored = window.localStorage.getItem(THEME_KEY) as Theme | null;
     if (stored) return stored;
-    if (typeof window.matchMedia !== "function") {
-      return "light";
-    }
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return "dark";
   });
 
   useEffect(() => {

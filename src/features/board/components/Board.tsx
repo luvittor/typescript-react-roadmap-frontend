@@ -11,7 +11,7 @@ import { MonthColumn } from "./MonthColumn";
 import { DragOverlay, useBoardSensors, reorderWithinList } from "../dnd";
 
 const OverlayCard = ({ card }: { card: Card }) => (
-  <div className="w-[240px] rounded-lg border border-border bg-card p-3 shadow-lg">
+  <div className="w-[300px] rounded-md border border-border bg-card p-2.5 shadow-lg">
     <p className="text-sm font-medium">{card.title}</p>
     <p className="text-xs text-muted-foreground capitalize">{card.status.replace("_", " ")}</p>
   </div>
@@ -175,9 +175,9 @@ export const Board = () => {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-5">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="px-5 sm:px-8">
           <p className="text-sm text-muted-foreground">
             Track and move work across months. Drag cards or use keyboard shortcuts (space + arrows).
           </p>
@@ -185,7 +185,7 @@ export const Board = () => {
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex min-h-[calc(100vh-9rem)] gap-0 overflow-x-auto border-y border-border/70 pb-4 [scrollbar-width:thin]">
           {months.map(({ year, month }, index) => {
             const query = monthQueries[index];
             const data = query.data;

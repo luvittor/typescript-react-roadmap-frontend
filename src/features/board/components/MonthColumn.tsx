@@ -36,15 +36,16 @@ export const MonthColumn = ({
 
   return (
     <section
+      ref={setNodeRef}
       aria-labelledby={`column-${year}-${month}`}
-      className={`flex min-w-[260px] flex-col gap-3 rounded-xl p-4 shadow-sm transition-colors ${isTarget ? "bg-primary/15 ring-2 ring-primary" : "bg-muted/40"}`}
+      className={`flex w-[min(340px,86vw)] flex-none self-stretch flex-col gap-3 border-r border-border/70 px-4 py-4 transition-colors sm:px-5 ${isTarget ? "bg-primary/10 ring-2 ring-inset ring-primary" : "bg-transparent"}`}
     >
-      <div className="flex items-center justify-between">
-        <h2 id={`column-${year}-${month}`} className="text-sm font-semibold uppercase tracking-wide">
+      <div className="flex min-h-12 items-center">
+        <h2 id={`column-${year}-${month}`} className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {monthLabel}
         </h2>
-        {column && <AddCardForm column={column} year={year} month={month} />}
       </div>
+      {column && <AddCardForm column={column} year={year} month={month} />}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -54,10 +55,10 @@ export const MonthColumn = ({
         </div>
       ) : (
         <ColumnSortableContext columnId={{ year, month }} cards={cards}>
-          <ol ref={setNodeRef} className="space-y-3" role="list" aria-live="polite">
+          <ol className="min-h-20 space-y-2" role="list" aria-live="polite">
             {cards.length === 0 ? (
               <li>
-                <div className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border/80 px-3 py-2.5 text-center text-xs text-muted-foreground">
                   Drop card here
                 </div>
               </li>

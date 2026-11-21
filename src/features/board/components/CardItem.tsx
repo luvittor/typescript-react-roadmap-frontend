@@ -74,7 +74,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
         }
       }}
       className={cn(
-        "group touch-none rounded-lg border border-border bg-card p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        "group touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
         !isMoving && !isSaving && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
@@ -91,7 +91,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
           {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" role="status" aria-label="Saving card" /> : <GripVertical className="h-4 w-4" />}
         </button>
 
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-1.5">
           {isEditing ? (
             <form
               onSubmit={(event) => {

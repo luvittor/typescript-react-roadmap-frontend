@@ -48,23 +48,23 @@
   }
 
   .dark {
-    --background: 224 71% 4%;
+    --background: 210 14% 15%;
     --foreground: 210 40% 98%;
-    --card: 224 71% 4%;
+    --card: 210 12% 19%;
     --card-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
+    --primary: 210 20% 96%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 222 47% 11%;
+    --secondary: 210 12% 23%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 222 47% 11%;
+    --muted: 210 12% 21%;
     --muted-foreground: 215 20% 65%;
-    --accent: 222 47% 11%;
+    --accent: 210 12% 25%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 85% 97%;
-    --border: 222 47% 11%;
-    --input: 222 47% 11%;
-    --ring: 212 24% 26%;
+    --destructive: 0 63% 36%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 10% 27%;
+    --input: 210 10% 32%;
+    --ring: 212 24% 55%;
   }
 
   * {
@@ -73,5 +73,7 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    min-width: 320px;
+    min-height: 100vh;
   }
 }
