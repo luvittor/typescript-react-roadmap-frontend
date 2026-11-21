@@ -10,6 +10,7 @@ export interface Column {
 }
 
 export interface Card {
+  pendingCreation?: boolean;
   id: number;
   column_id: number;
   order: number;

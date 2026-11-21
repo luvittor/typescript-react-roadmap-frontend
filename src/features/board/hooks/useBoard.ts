@@ -7,6 +7,7 @@ import { boardApi } from "../api";
 import type { CardStatus } from "../../../utils/status";
 
 export const cardsKey = (year: number, month: number) => ["cards", year, month] as const;
+export const createCardMutationKey = ["create-card"] as const;
 
 export const useMonthCards = (year: number, month: number) =>
   useQuery({
@@ -18,6 +19,7 @@ export const useCreateCard = (year: number, month: number) => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: createCardMutationKey,
     mutationFn: boardApi.createCard,
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
@@ -31,6 +33,7 @@ export const useCreateCard = (year: number, month: number) => {
         order: input.order,
         title: input.title ?? "",
         status: "not_started",
+        pendingCreation: true,
       };
 
       queryClient.setQueryData(cardsKey(year, month), (current: any) => {
@@ -57,14 +60,17 @@ export const useCreateCard = (year: number, month: number) => {
         return {
           ...current,
           cards: current.cards
-            .map((card: Card) => (card.id === context?.optimisticId ? data : card))
+            .map((card: Card) => (card.id === context?.optimisticId ? { ...data, pendingCreation: true } : card))
             .map((card: Card, index: number) => ({ ...card, order: index + 1 })),
         };
       });
       toast.success("Card added");
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
+    onSettled: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
+      queryClient.setQueryData<{ column: unknown; cards: Card[] }>(cardsKey(year, month), (current) =>
+        current ? { ...current, cards: current.cards.map((card) => card.id === data?.id ? { ...card, pendingCreation: false } : card) } : current,
+      );
     },
   });
 };
@@ -101,7 +107,7 @@ export const useUpdateCardTitle = (year: number, month: number, id: number) => {
       toast.success("Title updated");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
+      return queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
     },
   });
 };
@@ -137,7 +143,7 @@ export const useUpdateCardStatus = (year: number, month: number, id: number) => 
       toast.success("Status updated");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
+      return queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
     },
   });
 };

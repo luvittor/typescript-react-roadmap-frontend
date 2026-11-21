@@ -1,4 +1,4 @@
-import { useDroppable } from "@dnd-kit/core";
+import { useDndContext, useDroppable } from "@dnd-kit/core";
 import { useMemo } from "react";
 
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -14,14 +14,21 @@ export const MonthColumn = ({
   year,
   month,
   isLoading,
+  isMoving,
+  movingCardId,
 }: {
   column?: Column;
   cards: Card[];
   year: number;
   month: number;
   isLoading: boolean;
+  isMoving: boolean;
+  movingCardId: number | null;
 }) => {
   const monthLabel = useMemo(() => formatMonthLabel({ year, month }), [year, month]);
+  const { active, over } = useDndContext();
+  const overData = over?.data.current as { year?: number; month?: number } | undefined;
+  const isTarget = Boolean(active && overData?.year === year && overData.month === month);
   const { setNodeRef } = useDroppable({
     id: `drop-${year}-${month}`,
     data: { year, month, columnId: column?.id },
@@ -30,7 +37,7 @@ export const MonthColumn = ({
   return (
     <section
       aria-labelledby={`column-${year}-${month}`}
-      className="flex min-w-[260px] flex-col gap-3 rounded-xl bg-muted/40 p-4 shadow-sm"
+      className={`flex min-w-[260px] flex-col gap-3 rounded-xl p-4 shadow-sm transition-colors ${isTarget ? "bg-primary/15 ring-2 ring-primary" : "bg-muted/40"}`}
     >
       <div className="flex items-center justify-between">
         <h2 id={`column-${year}-${month}`} className="text-sm font-semibold uppercase tracking-wide">
@@ -60,7 +67,7 @@ export const MonthColumn = ({
                 .sort((a, b) => a.order - b.order)
                 .map((card) => (
                   <li key={card.id}>
-                    <CardItem card={card} year={year} month={month} />
+                    <CardItem card={card} year={year} month={month} isMoving={isMoving} isBeingMoved={movingCardId === card.id} />
                   </li>
                 ))
             )}

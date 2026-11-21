@@ -1,10 +1,10 @@
 import { DndContext } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import { useMemo, useState } from "react";
-import { QueryClient, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
+import { QueryClient, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { cardsKey, useMonthCards, useMoveCard } from "../hooks/useBoard";
+import { cardsKey, createCardMutationKey, useMonthCards, useMoveCard } from "../hooks/useBoard";
 import { getConsecutiveMonths, type MonthKey } from "../../../utils/date";
 import type { Card, ColumnCardsResponse } from "../types";
 import { MonthColumn } from "./MonthColumn";
@@ -36,12 +36,15 @@ export const createHandleDragEnd = ({
     if (!activeData) return;
 
     const fromKey = cardsKey(activeData.year, activeData.month);
-    const fromData = queryClient.getQueryData<ColumnCardsResponse>(fromKey);
-    if (!fromData) return;
-
     const targetYear = overData?.year ?? activeData.year;
     const targetMonth = overData?.month ?? activeData.month;
     const toKey = cardsKey(targetYear, targetMonth);
+    const cancellation = Promise.all([
+      queryClient.cancelQueries({ queryKey: fromKey, exact: true }),
+      queryClient.cancelQueries({ queryKey: toKey, exact: true }),
+    ]);
+    const fromData = queryClient.getQueryData<ColumnCardsResponse>(fromKey);
+    if (!fromData) return;
     const toData = queryClient.getQueryData<ColumnCardsResponse>(toKey);
     if (!toData) return;
 
@@ -72,13 +75,13 @@ export const createHandleDragEnd = ({
           cards: reordered,
         });
         const newOrder = reordered.find((card) => card.id === activeData.card.id)?.order ?? overIndex + 1;
+        await cancellation;
         await moveCard({
           id: activeData.card.id,
           year: targetYear,
           month: targetMonth,
           order: newOrder,
         });
-        queryClient.invalidateQueries({ queryKey: fromKey });
       } else {
         const withoutCard = sortedFrom.filter((card) => card.id !== activeData.card.id);
         const updatedFrom = withoutCard.map((card, index) => ({ ...card, order: index + 1 }));
@@ -96,6 +99,7 @@ export const createHandleDragEnd = ({
 
         const newOrder = updatedTo.find((card) => card.id === activeData.card.id)?.order ?? overIndex + 1;
 
+        await cancellation;
         await moveCard({
           id: activeData.card.id,
           year: targetYear,
@@ -103,15 +107,32 @@ export const createHandleDragEnd = ({
           order: newOrder,
         });
 
-        queryClient.invalidateQueries({ queryKey: fromKey });
-        queryClient.invalidateQueries({ queryKey: toKey });
       }
-    } catch (error) {
+    } catch {
       queryClient.setQueryData(fromSnapshot.key, fromSnapshot.data);
       queryClient.setQueryData(toSnapshot.key, toSnapshot.data);
       toastImpl.error("Move failed. Changes reverted");
+    } finally {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: fromKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: toKey, exact: true }),
+      ]);
     }
   };
+
+export const isUnchangedDrop = (event: DragEndEvent, queryClient: QueryClient) => {
+  const active = event.active.data.current as { card: Card; year: number; month: number } | undefined;
+  const over = event.over?.data.current as { card?: Card; year?: number; month?: number } | undefined;
+  if (!active || !event.over) return true;
+  if ((over?.year ?? active.year) !== active.year || (over?.month ?? active.month) !== active.month) return false;
+  const data = queryClient.getQueryData<ColumnCardsResponse>(cardsKey(active.year, active.month));
+  if (!data) return false;
+  const cards = [...data.cards].sort((a, b) => a.order - b.order);
+  const from = cards.findIndex((card) => card.id === active.card.id);
+  if (from < 0) return false;
+  const target = over?.card ? cards.findIndex((card) => card.id === over.card!.id) : cards.length - 1;
+  return from === target;
+};
 
 export const Board = () => {
   const start = useMemo(() => new Date(), []);
@@ -119,6 +140,10 @@ export const Board = () => {
   const monthQueries = months.map(({ year, month }) => useMonthCards(year, month));
   const sensors = useBoardSensors();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
+  const [movingCardId, setMovingCardId] = useState<number | null>(null);
+  const isCreating = useIsMutating({ mutationKey: createCardMutationKey }) > 0;
+  const moveInProgress = useRef(false);
   const queryClient = useQueryClient();
   const { mutateAsync: moveCardMutation } = useMoveCard();
 
@@ -136,7 +161,17 @@ export const Board = () => {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveCard(null);
-    await onDragEnd(event);
+    if (moveInProgress.current || isCreating || !event.over || isUnchangedDrop(event, queryClient)) return;
+    moveInProgress.current = true;
+    setIsMoving(true);
+    setMovingCardId(Number(event.active.id));
+    try {
+      await onDragEnd(event);
+    } finally {
+      moveInProgress.current = false;
+      setIsMoving(false);
+      setMovingCardId(null);
+    }
   };
 
   return (
@@ -162,6 +197,8 @@ export const Board = () => {
                 column={data?.column}
                 cards={data?.cards ?? []}
                 isLoading={query.isLoading}
+                isMoving={isMoving || isCreating}
+                movingCardId={movingCardId}
               />
             );
           })}

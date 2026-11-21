@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../components/ui/button";
@@ -14,13 +14,20 @@ import {
   useUpdateCardTitle,
 } from "../hooks/useBoard";
 
-export const CardItem = ({ card, year, month }: { card: Card; year: number; month: number }) => {
+export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: Card; year: number; month: number; isMoving: boolean; isBeingMoved: boolean }) => {
+  const isCreating = card.id < 0 || Boolean(card.pendingCreation);
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(card.title);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const { mutateAsync: updateTitle, isPending: isUpdatingTitle } = useUpdateCardTitle(year, month, card.id);
+  const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateCardStatus(year, month, card.id);
+  const { mutate: deleteCard, isPending: isDeleting } = useDeleteCard(year, month, card.id);
+  const isSaving = isCreating || isBeingMoved || isUpdatingTitle || isUpdatingStatus || isDeleting;
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
+    disabled: isMoving || isSaving,
     data: { card, year, month },
   });
 
@@ -28,10 +35,6 @@ export const CardItem = ({ card, year, month }: { card: Card; year: number; mont
     transform: CSS.Transform.toString(transform),
     transition,
   };
-
-  const { mutateAsync: updateTitle } = useUpdateCardTitle(year, month, card.id);
-  const { mutate: updateStatus } = useUpdateCardStatus(year, month, card.id);
-  const { mutate: deleteCard, isPending: isDeleting } = useDeleteCard(year, month, card.id);
 
   useEffect(() => {
     if (isEditing) {
@@ -63,8 +66,16 @@ export const CardItem = ({ card, year, month }: { card: Card; year: number; mont
     <div
       ref={setNodeRef}
       style={style}
+      aria-busy={isSaving}
+      onPointerDown={(event) => {
+        const target = event.target;
+        if (target instanceof Element && !target.closest("button, input, textarea, select, a, [contenteditable='true'], [role='button']")) {
+          listeners?.onPointerDown?.(event);
+        }
+      }}
       className={cn(
-        "group rounded-lg border border-border bg-card p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        "group touch-none rounded-lg border border-border bg-card p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        !isMoving && !isSaving && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
     >
@@ -75,8 +86,9 @@ export const CardItem = ({ card, year, month }: { card: Card; year: number; mont
           aria-label="Drag card"
           {...attributes}
           {...listeners}
+          disabled={isMoving || isSaving}
         >
-          <GripVertical className="h-4 w-4" />
+          {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" role="status" aria-label="Saving card" /> : <GripVertical className="h-4 w-4" />}
         </button>
 
         <div className="flex-1 space-y-2">
@@ -100,6 +112,7 @@ export const CardItem = ({ card, year, month }: { card: Card; year: number; mont
               type="button"
               className="w-full text-left text-sm font-medium"
               onClick={() => setIsEditing(true)}
+              disabled={isSaving}
             >
               {card.title || "Untitled"}
             </button>
@@ -113,6 +126,7 @@ export const CardItem = ({ card, year, month }: { card: Card; year: number; mont
                 getStatusColor(card.status),
               )}
               onClick={handleStatusToggle}
+              disabled={isSaving}
               aria-label={`Mark as ${getStatusLabel(getNextStatus(card.status))}`}
             >
               {getStatusLabel(card.status)}
@@ -124,7 +138,7 @@ export const CardItem = ({ card, year, month }: { card: Card; year: number; mont
               size="sm"
               className="h-8 px-2 text-muted-foreground hover:text-destructive"
               onClick={() => deleteCard()}
-              disabled={isDeleting}
+              disabled={isSaving}
               aria-label="Delete card"
             >
               <Trash2 className="h-4 w-4" />
