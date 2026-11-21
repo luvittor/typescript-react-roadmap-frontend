@@ -14,7 +14,7 @@ Choose one of the following methods to run the project:
 
 ### No-Container
 
-Use Node `20.14.0` (see `.nvmrc`).
+Use Node `24.15.0` (see `.nvmrc`).
 
 ```bash
 npm ci

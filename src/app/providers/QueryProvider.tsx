@@ -7,6 +7,10 @@ import { queryClient } from "../../lib/query-client";
 export const QueryProvider = ({ children }: { children: ReactNode }) => (
   <TanstackQueryProvider client={queryClient}>
     {children}
-    <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+    <ReactQueryDevtools
+      initialIsOpen={false}
+      position="bottom"
+      buttonPosition="bottom-right"
+    />
   </TanstackQueryProvider>
 );
