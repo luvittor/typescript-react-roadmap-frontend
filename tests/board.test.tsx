@@ -101,10 +101,12 @@ describe("Board", () => {
     renderWithProviders(<Board />, { route: "/board" });
 
     const user = userEvent.setup();
-    const inputs = await screen.findAllByPlaceholderText(/add card/i);
-    await user.clear(inputs[0]);
-    await user.type(inputs[0], "New Task");
-    await user.click(screen.getAllByRole("button", { name: /add/i })[0]);
+    const [month] = getConsecutiveMonths(now, 4);
+    const targetColumn = await screen.findByRole("region", { name: formatMonthLabel(month) });
+    await user.click(await within(targetColumn).findByRole("button", { name: `Add card to ${month.month}/${month.year}` }));
+    const input = within(targetColumn).getByPlaceholderText("Add card");
+    await user.type(input, "New Task");
+    await user.click(within(targetColumn).getByRole("button", { name: "Add card", exact: true }));
 
     await waitFor(() => {
       expect(createCardMock).toHaveBeenCalled();
@@ -135,9 +137,10 @@ describe("Board", () => {
 
     renderWithProviders(<Board />, { route: "/board" });
     const user = userEvent.setup();
-    const inputs = await screen.findAllByPlaceholderText(/add card/i);
-    await user.type(inputs[0], "New task");
-    await user.click(screen.getAllByRole("button", { name: /add/i })[0]);
+    const targetColumn = await screen.findByRole("region", { name: formatMonthLabel(month) });
+    await user.click(await within(targetColumn).findByRole("button", { name: `Add card to ${month.month}/${month.year}` }));
+    await user.type(within(targetColumn).getByPlaceholderText("Add card"), "New task");
+    await user.click(within(targetColumn).getByRole("button", { name: "Add card", exact: true }));
     const temporaryCard = await screen.findByText("New task");
     const temporaryContainer = temporaryCard.closest("li")!;
     expect(within(temporaryContainer).getByRole("status", { name: /saving card/i })).toBeInTheDocument();

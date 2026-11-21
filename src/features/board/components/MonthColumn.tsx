@@ -45,8 +45,6 @@ export const MonthColumn = ({
           {monthLabel}
         </h2>
       </div>
-      {column && <AddCardForm column={column} year={year} month={month} />}
-
       {isLoading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, index) => (
@@ -75,6 +73,7 @@ export const MonthColumn = ({
           </ol>
         </ColumnSortableContext>
       )}
+      {column && <AddCardForm column={column} year={year} month={month} />}
     </section>
   );
 };
