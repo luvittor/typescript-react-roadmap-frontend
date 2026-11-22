@@ -136,16 +136,57 @@ describe("Board", () => {
 
     const card = await screen.findByText("Accessible card");
     const cardItem = within(card.closest("li")!);
-    const dragHandle = cardItem.getByRole("button", { name: "Drag card" });
+    const moveTarget = cardItem.getByRole("group", { name: "Roadmap card: Accessible card" });
     const deleteButton = cardItem.getByRole("button", { name: "Delete card" });
 
-    expect(dragHandle).toHaveClass("card-control");
+    expect(moveTarget).toHaveAttribute("tabindex", "0");
     expect(deleteButton).toHaveClass("card-control");
 
     const user = userEvent.setup();
     await user.tab();
     await user.tab();
-    expect(dragHandle).toHaveFocus();
+    expect(moveTarget).toHaveFocus();
+    expect(cardItem.queryByRole("button", { name: "Drag card" })).not.toBeInTheDocument();
+  });
+
+  it("cycles the tri-state checkbox through not started, in progress, and completed", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    let currentStatus: Card["status"] = "not_started";
+    updateStatusMock.mockImplementation(async (_id: number, status: Card["status"]) => {
+      currentStatus = status;
+    });
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: { id: year * 10 + currentMonth, year, month: currentMonth, user_id: 1 },
+      cards: year === month.year && currentMonth === month.month
+        ? [{ id: 73, column_id: year * 10 + currentMonth, order: 1, title: "Status card", status: currentStatus }]
+        : [],
+    }));
+
+    renderWithProviders(<Board />, { route: "/board" });
+
+    const card = await screen.findByText("Status card");
+    const cardItem = within(card.closest("li")!);
+    const statusCheckbox = cardItem.getByRole("checkbox");
+    const actionRow = cardItem.getByTestId("card-main-row");
+    expect(within(actionRow).getByRole("button", { name: "Delete card" })).toBeInTheDocument();
+    expect(within(actionRow).getByRole("button", { name: "Status card" })).toBeInTheDocument();
+    expect(statusCheckbox).toHaveAttribute("aria-checked", "false");
+
+    const user = userEvent.setup();
+    await user.click(statusCheckbox);
+    await waitFor(() => expect(updateStatusMock).toHaveBeenCalledWith(73, "in_progress"));
+    await waitFor(() => expect(statusCheckbox).toHaveAttribute("aria-checked", "mixed"));
+    expect(statusCheckbox).toHaveClass("bg-sky-500");
+    expect(statusCheckbox.querySelector("span")).toHaveClass("h-0.5", "w-2", "bg-white");
+    await waitFor(() => expect(statusCheckbox).toBeEnabled());
+
+    await user.click(statusCheckbox);
+    await waitFor(() => expect(updateStatusMock).toHaveBeenCalledWith(73, "completed"));
+    await waitFor(() => expect(statusCheckbox).toHaveAttribute("aria-checked", "true"));
+    await waitFor(() => expect(statusCheckbox).toBeEnabled());
+
+    await user.click(statusCheckbox);
+    await waitFor(() => expect(statusCheckbox).toHaveAttribute("aria-checked", "false"));
   });
 
   it("rolls back optimistic card creation on error", async () => {
@@ -207,18 +248,21 @@ describe("Board", () => {
     await user.click(within(targetColumn).getByRole("button", { name: "Add card", exact: true }));
     const temporaryCard = await screen.findByText("New task");
     const temporaryContainer = temporaryCard.closest("li")!;
-    expect(within(temporaryContainer).getByRole("status", { name: /saving card/i })).toBeInTheDocument();
-    expect(within(temporaryContainer).getByRole("button", { name: /drag card/i })).toBeDisabled();
-    expect(within(temporaryContainer).getByRole("button", { name: /delete card/i })).toBeDisabled();
+    const temporaryCardItem = within(temporaryContainer);
+    expect(temporaryCardItem.getByRole("status", { name: /saving card/i })).toBeInTheDocument();
+    expect(temporaryCardItem.queryByRole("button", { name: "Delete card" })).not.toBeInTheDocument();
+    expect(within(temporaryContainer).getByRole("group", { name: "Roadmap card: New task" })).toHaveAttribute("aria-disabled", "true");
+    expect(within(temporaryContainer).queryByRole("button", { name: "Delete card" })).not.toBeInTheDocument();
     expect(temporaryCard).toBeDisabled();
     expect(updatePositionMock).not.toHaveBeenCalled();
 
     savedOnServer = true;
     await act(async () => { resolveCreate(saved); });
     await waitFor(() => expect(resolveRefresh).toBeDefined());
-    expect(within(screen.getByText("New task").closest("li")!).getByRole("button", { name: /drag card/i })).toBeDisabled();
+    expect(within(screen.getByText("New task").closest("li")!).getByRole("group", { name: "Roadmap card: New task" })).toHaveAttribute("aria-disabled", "true");
     await act(async () => { resolveRefresh({ column, cards: [saved] }); });
-    await waitFor(() => expect(within(screen.getByText("New task").closest("li")!).getByRole("button", { name: /drag card/i })).toBeEnabled());
+    await waitFor(() => expect(within(screen.getByText("New task").closest("li")!).getByRole("group", { name: "Roadmap card: New task" })).toHaveAttribute("aria-disabled", "false"));
+    expect(within(screen.getByText("New task").closest("li")!).getByRole("button", { name: "Delete card" })).toBeInTheDocument();
     expect(within(screen.getByText("New task").closest("li")!).queryByRole("status", { name: /saving card/i })).not.toBeInTheDocument();
   });
 

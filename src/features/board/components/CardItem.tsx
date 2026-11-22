@@ -1,12 +1,12 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, LoaderCircle, Trash2 } from "lucide-react";
+import { Check, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { cn } from "../../../lib/utils";
-import { getNextStatus, getStatusColor, getStatusLabel } from "../../../utils/status";
+import { getNextStatus, getStatusLabel } from "../../../utils/status";
 import type { Card } from "../types";
 import {
   useDeleteCard,
@@ -47,10 +47,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
     setValue(card.title);
   }, [card.title]);
 
-  const handleStatusToggle = () => {
-    const next = getNextStatus(card.status);
-    updateStatus(next);
-  };
+  const handleStatusToggle = () => updateStatus(getNextStatus(card.status));
 
   const handleSubmit = async () => {
     if (!value.trim() || value === card.title) {
@@ -66,12 +63,17 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
       aria-busy={isSaving}
+      aria-label={`Roadmap card: ${card.title || "Untitled"}`}
+      aria-disabled={isMoving || isSaving}
+      role="group"
+      tabIndex={isMoving || isSaving ? -1 : 0}
       onPointerDown={(event) => {
-        const target = event.target;
-        if (target instanceof Element && !target.closest("button, input, textarea, select, a, [contenteditable='true'], [role='button']")) {
-          listeners?.onPointerDown?.(event);
-        }
+        listeners?.onPointerDown?.(event);
+      }}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget) listeners?.onKeyDown?.(event);
       }}
       className={cn(
         "group touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
@@ -79,21 +81,28 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
         isDragging && "opacity-50",
       )}
     >
-      <div className="flex items-start gap-2">
+      <div data-testid="card-main-row" className="flex items-center gap-2">
         <button
           type="button"
-          className="card-control cursor-grab text-muted-foreground transition hover:text-foreground"
-          aria-label="Drag card"
-          {...attributes}
-          {...listeners}
-          disabled={isMoving || isSaving}
+          role="checkbox"
+          aria-checked={card.status === "not_started" ? false : card.status === "in_progress" ? "mixed" : true}
+          className={cn(
+            "inline-flex h-4 w-4 flex-none items-center justify-center overflow-hidden rounded-[4px] border border-foreground/80 bg-background text-white transition hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            card.status !== "not_started" && "border-sky-500 bg-sky-500",
+          )}
+          onClick={handleStatusToggle}
+          disabled={isSaving}
+          aria-label={`Status: ${getStatusLabel(card.status)}. Activate to mark ${getStatusLabel(getNextStatus(card.status))}`}
+          title={getStatusLabel(card.status)}
         >
-          {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" role="status" aria-label="Saving card" /> : <GripVertical className="h-4 w-4" />}
+          {card.status === "in_progress" && <span className="h-0.5 w-2 rounded-full bg-white" aria-hidden="true" />}
+          {card.status === "completed" && <Check className="h-3 w-3" aria-hidden="true" />}
         </button>
 
-        <div className="flex-1 space-y-1.5">
+        <div className="min-w-0 flex-1">
           {isEditing ? (
             <form
+              className="w-full"
               onSubmit={(event) => {
                 event.preventDefault();
                 void handleSubmit();
@@ -110,41 +119,31 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
           ) : (
             <button
               type="button"
-              className="w-full text-left text-sm font-medium"
+              className="w-full truncate text-left text-sm font-medium"
               onClick={() => setIsEditing(true)}
               disabled={isSaving}
             >
               {card.title || "Untitled"}
             </button>
           )}
-
-          <div className="flex items-center justify-between text-xs">
-            <button
-              type="button"
-              className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-semibold transition",
-                getStatusColor(card.status),
-              )}
-              onClick={handleStatusToggle}
-              disabled={isSaving}
-              aria-label={`Mark as ${getStatusLabel(getNextStatus(card.status))}`}
-            >
-              {getStatusLabel(card.status)}
-            </button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="card-control h-8 px-2 text-muted-foreground hover:text-destructive"
-              onClick={() => deleteCard()}
-              disabled={isSaving}
-              aria-label="Delete card"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
+
+        {isSaving ? (
+          <span className="inline-flex h-8 w-8 flex-none items-center justify-center text-muted-foreground">
+            <LoaderCircle className="h-4 w-4 animate-spin" role="status" aria-label="Saving card" />
+          </span>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="card-control h-8 w-8 flex-none px-2 text-muted-foreground hover:text-destructive"
+            onClick={() => deleteCard()}
+            aria-label="Delete card"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
