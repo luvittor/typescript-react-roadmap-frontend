@@ -9,13 +9,7 @@ import { getConsecutiveMonths, type MonthKey } from "../../../utils/date";
 import type { Card, ColumnCardsResponse } from "../types";
 import { MonthColumn } from "./MonthColumn";
 import { DragOverlay, useBoardSensors, reorderWithinList } from "../dnd";
-
-const OverlayCard = ({ card }: { card: Card }) => (
-  <div className="w-[300px] rounded-md border border-border bg-card p-2.5 shadow-lg">
-    <p className="text-sm font-medium">{card.title}</p>
-    <p className="text-xs text-muted-foreground capitalize">{card.status.replace("_", " ")}</p>
-  </div>
-);
+import { CardItem } from "./CardItem";
 
 export const isNearMonthStripEnd = ({
   scrollLeft,
@@ -239,14 +233,6 @@ export const Board = () => {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <div className="px-5 sm:px-8">
-          <p className="text-sm text-muted-foreground">
-            Track and move work across months. Drag cards or use keyboard shortcuts (space + arrows).
-          </p>
-        </div>
-      </div>
-
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <button type="button" onClick={loadEarlierMonths} className="mx-5 w-fit rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground sm:mx-8">
           Load earlier months
@@ -263,7 +249,7 @@ export const Board = () => {
           ))}
         </div>
 
-        <DragOverlay>{activeCard ? <OverlayCard card={activeCard} /> : null}</DragOverlay>
+        <DragOverlay>{activeCard ? <CardItem card={activeCard} year={0} month={0} isMoving={false} isBeingMoved={false} preview /> : null}</DragOverlay>
       </DndContext>
     </div>
   );

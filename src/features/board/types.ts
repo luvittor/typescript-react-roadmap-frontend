@@ -1,5 +1,7 @@
 import type { CardStatus } from "../../utils/status";
 
+export type CardColor = "slate" | "teal" | "green" | "yellow" | "blue";
+
 export interface Column {
   id: number;
   year: number;
@@ -16,6 +18,7 @@ export interface Card {
   order: number;
   title: string;
   status: CardStatus;
+  color?: CardColor;
   created_at?: string;
   updated_at?: string;
 }

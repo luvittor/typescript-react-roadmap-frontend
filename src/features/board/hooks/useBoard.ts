@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { cardTitleSchema } from "../../../lib/validators";
-import type { Card } from "../types";
+import type { Card, CardColor } from "../types";
 import { boardApi } from "../api";
 import type { CardStatus } from "../../../utils/status";
 
@@ -38,6 +38,7 @@ export const useCreateCard = (year: number, month: number) => {
         order: input.order,
         title: input.title ?? "",
         status: "not_started",
+        color: "slate",
         pendingCreation: true,
       };
 
@@ -150,6 +151,28 @@ export const useUpdateCardStatus = (year: number, month: number, id: number) => 
     onSettled: () => {
       return queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
     },
+  });
+};
+
+export const useUpdateCardColor = (year: number, month: number, id: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (color: CardColor) => boardApi.updateColor(id, color),
+    onMutate: async (color) => {
+      await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
+      const previous = queryClient.getQueryData<{ column: any; cards: Card[] }>(cardsKey(year, month));
+      queryClient.setQueryData(cardsKey(year, month), (current: any) => current ? ({
+        ...current,
+        cards: current.cards.map((card: Card) => card.id === id ? { ...card, color } : card),
+      }) : current);
+      return { previous };
+    },
+    onError: (_error, _color, context) => {
+      if (context?.previous) queryClient.setQueryData(cardsKey(year, month), context.previous);
+      toast.error("Could not update card color");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: cardsKey(year, month) }),
   });
 };
 

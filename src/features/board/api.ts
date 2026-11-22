@@ -1,5 +1,5 @@
 import { api } from "../../lib/http";
-import type { Card, CardWithColumn, Column, ColumnCardsResponse } from "./types";
+import type { Card, CardColor, CardWithColumn, Column, ColumnCardsResponse } from "./types";
 import type { CardStatus } from "../../utils/status";
 
 const basePath = "/api/v1";
@@ -29,6 +29,10 @@ export const boardApi = {
   },
   updateStatus: async (id: number, status: CardStatus) => {
     const { data } = await api.patch<Card>(`${basePath}/cards/${id}/status`, { status });
+    return data;
+  },
+  updateColor: async (id: number, color: CardColor) => {
+    const { data } = await api.patch<Card>(`${basePath}/cards/${id}/color`, { color });
     return data;
   },
   updatePosition: async (id: number, payload: { year: number; month: number; order: number }) => {

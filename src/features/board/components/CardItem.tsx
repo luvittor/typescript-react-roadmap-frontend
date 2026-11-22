@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, LoaderCircle, Trash2 } from "lucide-react";
+import { Check, Ellipsis, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../components/ui/button";
@@ -8,26 +8,55 @@ import { Input } from "../../../components/ui/input";
 import { cn } from "../../../lib/utils";
 import { getNextStatus, getStatusLabel } from "../../../utils/status";
 import type { Card } from "../types";
+import type { CardColor } from "../types";
 import {
   useDeleteCard,
   useUpdateCardStatus,
   useUpdateCardTitle,
+  useUpdateCardColor,
 } from "../hooks/useBoard";
 
-export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: Card; year: number; month: number; isMoving: boolean; isBeingMoved: boolean }) => {
+const cardColors: { value: CardColor; label: string; className: string }[] = [
+  { value: "slate", label: "Gray", className: "bg-slate-400" },
+  { value: "teal", label: "Teal", className: "bg-teal-500" },
+  { value: "green", label: "Green", className: "bg-green-500" },
+  { value: "yellow", label: "Yellow", className: "bg-yellow-400" },
+  { value: "blue", label: "Blue", className: "bg-blue-500" },
+];
+
+export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = false }: { card: Card; year: number; month: number; isMoving: boolean; isBeingMoved: boolean; preview?: boolean }) => {
   const isCreating = card.id < 0 || Boolean(card.pendingCreation);
   const [isEditing, setIsEditing] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [value, setValue] = useState(card.title);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setIsMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isMenuOpen]);
 
   const { mutateAsync: updateTitle, isPending: isUpdatingTitle } = useUpdateCardTitle(year, month, card.id);
   const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateCardStatus(year, month, card.id);
+  const { mutate: updateColor, isPending: isUpdatingColor } = useUpdateCardColor(year, month, card.id);
   const { mutate: deleteCard, isPending: isDeleting } = useDeleteCard(year, month, card.id);
-  const isSaving = isCreating || isBeingMoved || isUpdatingTitle || isUpdatingStatus || isDeleting;
+  const isSaving = isCreating || isBeingMoved || isUpdatingTitle || isUpdatingStatus || isUpdatingColor || isDeleting;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
-    disabled: isMoving || isSaving,
+    disabled: preview || isMoving || isSaving,
     data: { card, year, month },
   });
 
@@ -61,15 +90,16 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
 
   return (
     <div
-      ref={setNodeRef}
+      ref={preview ? undefined : setNodeRef}
       style={style}
-      {...attributes}
+      {...(preview ? {} : attributes)}
       aria-busy={isSaving}
       aria-label={`Roadmap card: ${card.title || "Untitled"}`}
       aria-disabled={isMoving || isSaving}
       role="group"
       tabIndex={isMoving || isSaving ? -1 : 0}
       onPointerDown={(event) => {
+        if (preview) return;
         listeners?.onPointerDown?.(event);
       }}
       onKeyDown={(event) => {
@@ -77,6 +107,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
       }}
       className={cn(
         "group touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        ({ slate: "border-l-4 border-l-slate-400", teal: "border-l-4 border-l-teal-500", green: "border-l-4 border-l-green-500", yellow: "border-l-4 border-l-yellow-400", blue: "border-l-4 border-l-blue-500" } as Record<string, string>)[card.color ?? "slate"],
         !isMoving && !isSaving && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
@@ -133,16 +164,57 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
             <LoaderCircle className="h-4 w-4 animate-spin" role="status" aria-label="Saving card" />
           </span>
         ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="card-control h-8 w-8 flex-none px-2 text-muted-foreground hover:text-destructive"
-            onClick={() => deleteCard()}
-            aria-label="Delete card"
+          <div
+            className="relative flex-none"
+            ref={menuRef}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="card-control h-8 w-8 flex-none px-2 text-muted-foreground"
+              onClick={() => setIsMenuOpen((open) => !open)}
+              aria-label="Card options"
+              aria-expanded={isMenuOpen}
+              aria-haspopup="menu"
+            >
+              <Ellipsis className="h-4 w-4" />
+            </Button>
+            {isMenuOpen && (
+              <div role="menu" aria-label="Card options" className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1 rounded-md border border-border bg-card p-2 shadow-lg">
+                {cardColors.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-label={`Set card color to ${color.label}`}
+                    aria-checked={(card.color ?? "slate") === color.value}
+                    title={color.label}
+                    onClick={() => {
+                      updateColor(color.value);
+                      setIsMenuOpen(false);
+                    }}
+                    className={cn("h-4 w-4 rounded-full ring-offset-1 transition-transform hover:scale-125 hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", color.className, (card.color ?? "slate") === color.value && "ring-2 ring-foreground")}
+                  />
+                ))}
+                <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-label="Delete card"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    deleteCard();
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

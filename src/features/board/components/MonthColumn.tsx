@@ -65,13 +65,7 @@ export const MonthColumn = ({
       ) : (
         <ColumnSortableContext columnId={{ year, month }} cards={cards}>
           <ol className="min-h-20 space-y-2" role="list" aria-live="polite">
-            {cards.length === 0 ? (
-              <li>
-                <div className="rounded-md border border-dashed border-border/80 px-3 py-2.5 text-center text-xs text-muted-foreground">
-                  Drop card here
-                </div>
-              </li>
-            ) : (
+            {cards.length !== 0 && (
               cards
                 .slice()
                 .sort((a, b) => a.order - b.order)
