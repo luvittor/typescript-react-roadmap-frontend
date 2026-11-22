@@ -77,3 +77,22 @@
     min-height: 100vh;
   }
 }
+
+@layer components {
+  .card-control {
+    opacity: 1;
+    transition: opacity 150ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card-control {
+      opacity: 0;
+    }
+
+    .group:hover .card-control,
+    .group:focus-within .card-control,
+    .group[aria-busy="true"] .card-control {
+      opacity: 1;
+    }
+  }
+}

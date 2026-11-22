@@ -82,7 +82,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
       <div className="flex items-start gap-2">
         <button
           type="button"
-          className="cursor-grab text-muted-foreground transition hover:text-foreground"
+          className="card-control cursor-grab text-muted-foreground transition hover:text-foreground"
           aria-label="Drag card"
           {...attributes}
           {...listeners}
@@ -136,7 +136,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved }: { card: 
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-muted-foreground hover:text-destructive"
+              className="card-control h-8 px-2 text-muted-foreground hover:text-destructive"
               onClick={() => deleteCard()}
               disabled={isSaving}
               aria-label="Delete card"

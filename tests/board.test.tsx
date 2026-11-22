@@ -123,6 +123,31 @@ describe("Board", () => {
     });
   });
 
+  it("keeps drag and delete controls labelled and keyboard focusable with discreet styling", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: { id: year * 10 + currentMonth, year, month: currentMonth, user_id: 1 },
+      cards: year === month.year && currentMonth === month.month
+        ? [{ id: 72, column_id: year * 10 + currentMonth, order: 1, title: "Accessible card", status: "not_started" as const }]
+        : [],
+    }));
+
+    renderWithProviders(<Board />, { route: "/board" });
+
+    const card = await screen.findByText("Accessible card");
+    const cardItem = within(card.closest("li")!);
+    const dragHandle = cardItem.getByRole("button", { name: "Drag card" });
+    const deleteButton = cardItem.getByRole("button", { name: "Delete card" });
+
+    expect(dragHandle).toHaveClass("card-control");
+    expect(deleteButton).toHaveClass("card-control");
+
+    const user = userEvent.setup();
+    await user.tab();
+    await user.tab();
+    expect(dragHandle).toHaveFocus();
+  });
+
   it("rolls back optimistic card creation on error", async () => {
     const now = new Date();
     getCardsMock.mockImplementation(async (year: number, month: number) => ({
