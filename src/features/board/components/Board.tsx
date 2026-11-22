@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { QueryClient, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { cardsKey, createCardMutationKey, useMonthCards, useMoveCard } from "../hooks/useBoard";
+import { cardsKey, createCardMutationKey, useMonthCards, useMonthSummaries, useMoveCard } from "../hooks/useBoard";
 import { getConsecutiveMonths, type MonthKey } from "../../../utils/date";
 import type { Card, ColumnCardsResponse } from "../types";
 import { MonthColumn } from "./MonthColumn";
 import { DragOverlay, useBoardSensors, reorderWithinList } from "../dnd";
 import { CardItem } from "./CardItem";
+import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
 
 export const isNearMonthStripEnd = ({
   scrollLeft,
@@ -165,8 +166,14 @@ export const isUnchangedDrop = (event: DragEndEvent, queryClient: QueryClient) =
 
 export const Board = () => {
   const [months, setMonths] = useState<MonthKey[]>(() => getConsecutiveMonths(new Date(), 6));
+  const [collapsedMonths, setCollapsedMonths] = useState<MonthKey[]>(() => {
+    const date = new Date();
+    return getConsecutiveMonths(new Date(date.getFullYear(), date.getMonth() - 1, 1), 1);
+  });
   const monthStripRef = useRef<HTMLDivElement | null>(null);
   const lastExpandedFrom = useRef<MonthKey | null>(null);
+  const lastCollapsedFrom = useRef<MonthKey | null>(null);
+  const isPrependingCollapsed = useRef(false);
   const current = months.find(({ year, month }) => {
     const now = new Date();
     return year === now.getFullYear() && month === now.getMonth() + 1;
@@ -179,23 +186,34 @@ export const Board = () => {
   const moveInProgress = useRef(false);
   const queryClient = useQueryClient();
   const { mutateAsync: moveCardMutation } = useMoveCard();
-
-  const loadEarlierMonths = () => {
-    const first = months[0];
-    if (!first) return;
-    const earlier = getConsecutiveMonths(new Date(first.year, first.month - 1 - 6, 1), 6);
-    setMonths((existing) => [...earlier, ...existing]);
-  };
+  const now = new Date();
+  const summaryEnd = getConsecutiveMonths(new Date(now.getFullYear(), now.getMonth() - 1, 1), 1)[0]!;
+  const summaryStart = collapsedMonths[0] ?? summaryEnd;
+  const summaries = useMonthSummaries(summaryStart, summaryEnd);
 
   const handleMonthScroll = useCallback(() => {
     const strip = monthStripRef.current;
     const last = months[months.length - 1];
-    if (!strip || !last || strip.clientWidth === 0 || strip.scrollWidth === 0 || !isNearMonthStripEnd(strip)) return;
+    if (!strip || !last || strip.clientWidth === 0 || strip.scrollWidth === 0) return;
+    if (strip.scrollLeft <= 1) {
+      if (isPrependingCollapsed.current) return;
+      const first = collapsedMonths[0]!;
+      if (lastCollapsedFrom.current?.year === first.year && lastCollapsedFrom.current.month === first.month) return;
+      isPrependingCollapsed.current = true;
+      lastCollapsedFrom.current = first;
+      const earlier = getConsecutiveMonths(new Date(first.year, first.month - 7, 1), 6);
+      setCollapsedMonths((existing) => [...earlier, ...existing]);
+      requestAnimationFrame(() => {
+        if (strip) strip.scrollLeft = 6 * 48;
+        isPrependingCollapsed.current = false;
+      });
+    }
+    if (!isNearMonthStripEnd(strip)) return;
     if (lastExpandedFrom.current?.year === last.year && lastExpandedFrom.current.month === last.month) return;
     const later = getConsecutiveMonths(new Date(last.year, last.month, 1), 3);
     lastExpandedFrom.current = last;
     setMonths((existing) => [...existing, ...later]);
-  }, [months]);
+  }, [collapsedMonths, months]);
 
   useEffect(() => {
     const checkMonthStrip = () => handleMonthScroll();
@@ -231,13 +249,44 @@ export const Board = () => {
     }
   };
 
+  const scrollTimeline = (direction: -1 | 1) => {
+    const strip = monthStripRef.current;
+    if (!strip) return;
+    if (direction < 0 && strip.scrollLeft <= 1) {
+      const first = collapsedMonths[0]!;
+      if (!isPrependingCollapsed.current) {
+        isPrependingCollapsed.current = true;
+        lastCollapsedFrom.current = first;
+        const earlier = getConsecutiveMonths(new Date(first.year, first.month - 7, 1), 6);
+        setCollapsedMonths((existing) => [...earlier, ...existing]);
+        requestAnimationFrame(() => {
+          strip.scrollLeft = Math.max(0, 6 * 48 - strip.clientWidth / 2);
+          isPrependingCollapsed.current = false;
+        });
+      }
+      return;
+    }
+    if (typeof strip.scrollBy === "function") strip.scrollBy({ left: direction * 340, behavior: "smooth" });
+    else strip.scrollLeft += direction * 340;
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-5">
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <button type="button" onClick={loadEarlierMonths} className="mx-5 w-fit rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground sm:mx-8">
-          Load earlier months
-        </button>
-        <div data-testid="month-strip" ref={monthStripRef} onScroll={handleMonthScroll} className="flex min-h-[calc(100vh-9rem)] items-stretch gap-0 overflow-x-auto border-y border-border/70 pb-4 [scrollbar-width:thin]">
+        <div className="flex min-h-[calc(100vh-9rem)] items-stretch">
+        <button type="button" aria-label="Scroll timeline left" onClick={() => scrollTimeline(-1)} className="z-10 flex w-12 flex-none items-center justify-center border-y border-r border-border/70 bg-background/90 text-muted-foreground hover:bg-muted" title="Earlier months"><ChevronLeft className="h-5 w-5" /></button>
+        <div data-testid="month-strip" ref={monthStripRef} onScroll={handleMonthScroll} className="flex min-w-0 flex-1 items-stretch gap-0 overflow-x-auto border-y border-border/70 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex flex-none items-stretch" aria-label="Earlier months">
+          {collapsedMonths.map((month) => {
+            const count = summaries.data?.[`${month.year}-${month.month}`]?.card_count ?? 0;
+            return <button key={`${month.year}-${month.month}`} type="button" aria-label={`${month.year}-${month.month}: ${summaries.isFetching ? "loading card total" : `${count} cards`}`} className="relative flex w-12 flex-none items-center justify-center border-r border-border/70 hover:bg-muted" onClick={() => {
+              const selectedPeriod = getConsecutiveMonths(new Date(month.year, month.month - 1, 1), 6);
+              setMonths(selectedPeriod);
+              setCollapsedMonths((items) => items.filter((item) => item.year * 12 + item.month < month.year * 12 + month.month));
+              if (monthStripRef.current) monthStripRef.current.scrollLeft = 0;
+            }}><span className="absolute top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-4">{summaries.isFetching ? <LoaderCircle className="h-3 w-3 animate-spin" role="status" aria-label="Loading card total" /> : count}</span><span className="[writing-mode:vertical-rl] rotate-180 text-xs">{new Date(month.year, month.month - 1).toLocaleDateString(undefined, { month: "short", year: "2-digit" })}</span></button>;
+          })}
+          </nav>
           {months.map((month) => (
             <MonthQueryColumn
               key={`${month.year}-${month.month}`}
@@ -247,6 +296,8 @@ export const Board = () => {
               movingCardId={movingCardId}
             />
           ))}
+        </div>
+        <button type="button" aria-label="Scroll timeline right" onClick={() => scrollTimeline(1)} className="z-10 flex w-12 flex-none items-center justify-center border-y border-l border-border/70 bg-background/90 text-muted-foreground hover:bg-muted" title="Later months"><ChevronRight className="h-5 w-5" /></button>
         </div>
 
         <DragOverlay>{activeCard ? <CardItem card={activeCard} year={0} month={0} isMoving={false} isBeingMoved={false} preview /> : null}</DragOverlay>

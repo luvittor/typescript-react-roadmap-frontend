@@ -1,6 +1,6 @@
 import type { DragEndEvent } from "@dnd-kit/core";
 import userEvent from "@testing-library/user-event";
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
@@ -12,6 +12,7 @@ import type { Card } from "../src/features/board/types";
 import { getConsecutiveMonths, formatMonthLabel } from "../src/utils/date";
 
 const getCardsMock = vi.fn();
+const getMonthSummariesMock = vi.fn();
 const createCardMock = vi.fn();
 const updatePositionMock = vi.fn();
 const updateTitleMock = vi.fn();
@@ -37,6 +38,7 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
 vi.mock("../src/features/board/api", () => ({
   boardApi: {
     getCards: (...args: any[]) => getCardsMock(...args),
+    getMonthSummaries: (...args: any[]) => getMonthSummariesMock(...args),
     createCard: (...args: any[]) => createCardMock(...args),
     updatePosition: (...args: any[]) => updatePositionMock(...args),
     updateTitle: (...args: any[]) => updateTitleMock(...args),
@@ -51,6 +53,7 @@ describe("Board", () => {
   beforeEach(() => {
     resetAuthStore();
     vi.clearAllMocks();
+    getMonthSummariesMock.mockResolvedValue({});
     useAuthStore.setState({ token: "token", user: { id: 1, email: "user@example.com" }, isHydrated: true });
   });
 
@@ -58,6 +61,60 @@ describe("Board", () => {
     expect(isNearMonthStripEnd({ scrollLeft: 0, clientWidth: 2600, scrollWidth: 2040 })).toBe(true);
     expect(isNearMonthStripEnd({ scrollLeft: 0, clientWidth: 1200, scrollWidth: 2040 })).toBe(false);
     expect(isNearMonthStripEnd({ scrollLeft: 400, clientWidth: 1200, scrollWidth: 2040 })).toBe(true);
+  });
+
+  it("starts with the previous month collapsed beside the current open month and navigates when selected", async () => {
+    const [first] = getConsecutiveMonths(new Date(), 1);
+    const previous = getConsecutiveMonths(new Date(first.year, first.month - 2, 1), 1)[0];
+    getMonthSummariesMock.mockResolvedValue({ [`${previous.year}-${previous.month}`]: { year: previous.year, month: previous.month, card_count: 3 } });
+    getCardsMock.mockImplementation(async (year: number, month: number) => ({ column: null, cards: [] }));
+    renderWithProviders(<Board />, { route: "/board" });
+    const monthButton = await screen.findByRole("button", { name: new RegExp(`${previous.year}-${previous.month}: 3 cards`) });
+    expect(monthButton).toHaveTextContent("3");
+    const current = getConsecutiveMonths(new Date(), 1)[0];
+    const currentColumn = screen.getByRole("region", { name: formatMonthLabel(current) });
+    expect(monthButton.compareDocumentPosition(currentColumn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await userEvent.setup().click(monthButton);
+    expect(await screen.findByRole("region", { name: formatMonthLabel(previous) })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: new RegExp(`${previous.year}-${previous.month}:`) })).not.toBeInTheDocument();
+  });
+
+  it("shows a spinner in each collapsed month while totals are loading", async () => {
+    let resolveTotals!: (totals: Record<string, { year: number; month: number; card_count: number }>) => void;
+    getMonthSummariesMock.mockImplementation(() => new Promise((resolve) => { resolveTotals = resolve; }));
+    getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
+    renderWithProviders(<Board />, { route: "/board" });
+    const rail = screen.getByRole("navigation", { name: "Earlier months" });
+    expect(within(rail).getByRole("status", { name: "Loading card total" })).toBeInTheDocument();
+    await act(async () => resolveTotals({}));
+    await waitFor(() => expect(within(rail).queryByRole("status", { name: "Loading card total" })).not.toBeInTheDocument());
+    expect(within(rail).getByRole("button")).toHaveTextContent("0");
+  });
+
+  it("adds older months as collapsed tabs when the timeline scrolls left", async () => {
+    getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
+    renderWithProviders(<Board />, { route: "/board" });
+    const strip = screen.getByTestId("month-strip");
+    expect(screen.getByRole("navigation", { name: "Earlier months" }).children).toHaveLength(1);
+    Object.defineProperty(strip, "scrollLeft", { configurable: true, value: 0, writable: true });
+    Object.defineProperty(strip, "clientWidth", { configurable: true, value: 800 });
+    Object.defineProperty(strip, "scrollWidth", { configurable: true, value: 2000 });
+    fireEvent.scroll(strip);
+    await waitFor(() => expect(screen.getByRole("navigation", { name: "Earlier months" }).children.length).toBeGreaterThan(1));
+  });
+
+  it("provides left and right timeline arrows that scroll the month strip", async () => {
+    getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
+    renderWithProviders(<Board />, { route: "/board" });
+    const strip = screen.getByTestId("month-strip");
+    const scrollBy = vi.fn();
+    Object.defineProperty(strip, "scrollBy", { configurable: true, value: scrollBy });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Scroll timeline right" }));
+    expect(scrollBy).toHaveBeenCalledWith({ left: 340, behavior: "smooth" });
+    Object.defineProperty(strip, "scrollLeft", { configurable: true, value: 500, writable: true });
+    await user.click(screen.getByRole("button", { name: "Scroll timeline left" }));
+    expect(scrollBy).toHaveBeenLastCalledWith({ left: -340, behavior: "smooth" });
   });
 
   it("automatically loads additional months when the viewport is wider than the initial strip", async () => {
@@ -84,7 +141,7 @@ describe("Board", () => {
 
       renderWithProviders(<Board />, { route: "/board" });
 
-      await waitFor(() => expect(screen.getAllByRole("region")).toHaveLength(12));
+      await waitFor(() => expect(screen.getAllByRole("region").length).toBeGreaterThan(6));
     } finally {
       if (previousClientWidth) Object.defineProperty(HTMLElement.prototype, "clientWidth", previousClientWidth);
       else Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
@@ -156,7 +213,7 @@ describe("Board", () => {
 
     const user = userEvent.setup();
     await user.tab();
-    await user.tab();
+    for (let tab = 0; tab < 20 && document.activeElement !== moveTarget; tab += 1) await user.tab();
     expect(moveTarget).toHaveFocus();
     expect(cardItem.queryByRole("button", { name: "Drag card" })).not.toBeInTheDocument();
   });

@@ -15,6 +15,13 @@ export const boardApi = {
     );
     return data;
   },
+  getMonthSummaries: async (from: { year: number; month: number }, to: { year: number; month: number }) => {
+    const { data } = await api.get<Record<string, { year: number; month: number; card_count: number }>>(
+      `${basePath}/columns/summaries`,
+      { params: { from_year: from.year, from_month: from.month, to_year: to.year, to_month: to.month } },
+    );
+    return data;
+  },
   createCard: async (payload: { column_id: number; order: number; title?: string }) => {
     const { data } = await api.post<Card>(`${basePath}/cards`, payload);
     return data;

@@ -15,6 +15,12 @@ export const useMonthCards = (year: number, month: number) =>
     queryFn: () => boardApi.getCards(year, month),
   });
 
+export const useMonthSummaries = (from: { year: number; month: number }, to: { year: number; month: number }) =>
+  useQuery({
+    queryKey: ["month-summaries", from.year, from.month, to.year, to.month],
+    queryFn: () => boardApi.getMonthSummaries(from, to),
+  });
+
 export const useEnsureMonthColumn = () =>
   useMutation({
     mutationFn: ({ year, month }: { year: number; month: number }) => boardApi.ensureColumn(year, month),
