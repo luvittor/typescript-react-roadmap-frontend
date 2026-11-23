@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { getLoginPath } from "./app-path";
 import { useAuthStore } from "../store/auth-store";
 
 const api = axios.create({
@@ -27,8 +28,12 @@ api.interceptors.response.use(
       logout();
       if (typeof window !== "undefined") {
         const currentPath = window.location.pathname;
-        if (currentPath !== "/login") {
-          window.location.href = "/login";
+        const loginPath = getLoginPath(
+          import.meta.env.BASE_URL,
+          window.location.href,
+        );
+        if (currentPath !== loginPath) {
+          window.location.href = loginPath;
         }
       }
     }

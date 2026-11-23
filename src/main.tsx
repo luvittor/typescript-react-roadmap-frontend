@@ -7,13 +7,19 @@ import "./index.css";
 import { QueryProvider } from "./app/providers/QueryProvider";
 import { AuthProvider } from "./app/providers/AuthProvider";
 import { ThemeProvider } from "./app/providers/ThemeProvider";
+import { getRouterBasename } from "./lib/app-path";
+
+const routerBasename = getRouterBasename(
+  import.meta.env.BASE_URL,
+  window.location.href,
+);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryProvider>
       <AuthProvider>
         <ThemeProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={routerBasename}>
             <App />
           </BrowserRouter>
         </ThemeProvider>

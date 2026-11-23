@@ -1,0 +1,17 @@
+Options -Indexes
+RewriteEngine On
+
+# Leave API requests to Laravel's rewrite rules.
+RewriteRule ^api(?:/|$) - [L]
+RewriteRule ^app(?:/|$) - [L]
+
+# Normalize trailing slashes on SPA routes so relative assets resolve at the app root.
+RewriteRule ^(.+)/$ $1 [R=301,L]
+
+# Serve Vite assets and public icons from the atomically deployed app directory.
+RewriteRule ^assets/(.*)$ app/assets/$1 [L]
+RewriteRule ^([^/]+\.(?:svg|png|ico|webmanifest|xml|txt))$ app/$1 [L]
+
+# Let React Router handle /roadmap, /roadmap/login, and other SPA routes.
+RewriteRule ^$ app/index.html [L]
+RewriteRule ^.*$ app/index.html [L]

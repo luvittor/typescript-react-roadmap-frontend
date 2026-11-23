@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
     steps:
       - name: Checkout code
@@ -38,8 +38,8 @@ jobs:
           port: 22
           script: |
             # remove any leftover temp and recreate
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp
-            mkdir -p /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp
+            rm -rf /home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp
+            mkdir -p /home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp
 
       - name: Upload static files via SFTP
         uses: appleboy/scp-action@v0.1.7
@@ -49,7 +49,7 @@ jobs:
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
           source: "dist/"
-          target: "/home/dh_jirb5e/vittoretti.com_roadmap_app_tmp"
+          target: "/home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp"
 
       - name: Swap temp into place and clean up
         uses: appleboy/ssh-action@v0.1.7
@@ -59,17 +59,21 @@ jobs:
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
           script: |
-            # ensure target folder exists
-            mkdir -p /home/dh_jirb5e/vittoretti.com/roadmap
+            # Publish the SPA at /roadmap and keep its release isolated from /roadmap/api.
+            mkdir -p /home/dh_jirb5e/vettoretti.dev/roadmap
+
+            # Install the parent routing rules so deep links resolve to the SPA.
+            cp /home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp/dist/roadmap-root.htaccess /home/dh_jirb5e/vettoretti.dev/roadmap/.htaccess
+            rm /home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp/dist/roadmap-root.htaccess
 
             # rename current app to .old for rollback
-            mv /home/dh_jirb5e/vittoretti.com/roadmap/app /home/dh_jirb5e/vittoretti.com/roadmap/app_old 2>/dev/null || true
+            mv /home/dh_jirb5e/vettoretti.dev/roadmap/app /home/dh_jirb5e/vettoretti.dev/roadmap/app_old 2>/dev/null || true
 
             # move new build into place
-            mv /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp/dist /home/dh_jirb5e/vittoretti.com/roadmap/app
+            mv /home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp/dist /home/dh_jirb5e/vettoretti.dev/roadmap/app
 
             # remove the old backup
-            rm -rf /home/dh_jirb5e/vittoretti.com/roadmap/app_old
+            rm -rf /home/dh_jirb5e/vettoretti.dev/roadmap/app_old
 
             # remove the temp directory
-            rm -rf /home/dh_jirb5e/vittoretti.com_roadmap_app_tmp
+            rm -rf /home/dh_jirb5e/vettoretti.dev_roadmap_app_tmp
