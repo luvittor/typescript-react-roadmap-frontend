@@ -16,8 +16,14 @@ export const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDiv
   <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
 );
 
-export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
+export type CardTitleProps = Omit<React.HTMLAttributes<HTMLHeadingElement>, "children"> & {
+  children: React.ReactNode;
+};
+
+export const CardTitle = ({ className, children, ...props }: CardTitleProps) => (
+  <h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props}>
+    {children}
+  </h3>
 );
 
 export const CardDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (

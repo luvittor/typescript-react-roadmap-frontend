@@ -1,5 +1,5 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { Skeleton } from "../../../components/ui/skeleton";
 import { formatMonthLabel } from "../../../utils/date";
@@ -7,6 +7,8 @@ import type { Card, Column } from "../types";
 import { CardItem } from "./CardItem";
 import { AddCardForm } from "./AddCardForm";
 import { ColumnSortableContext } from "../dnd";
+
+const loadingSkeletonKeys = ["month-card-1", "month-card-2", "month-card-3"] as const;
 
 export const MonthColumn = ({
   column,
@@ -41,6 +43,39 @@ export const MonthColumn = ({
     id: `drop-${year}-${month}`,
     data: { year, month, columnId: column?.id },
   });
+  let monthContent: ReactNode;
+
+  if (isError) {
+    monthContent = (
+      <div className="rounded-md border border-destructive/40 p-3 text-sm text-muted-foreground">
+        <p>Could not load this month.</p>
+        <button type="button" onClick={onRetry} className="mt-1 underline">Try again</button>
+      </div>
+    );
+  } else if (isLoading) {
+    monthContent = (
+      <div className="space-y-3">
+        {loadingSkeletonKeys.map((skeletonKey) => (
+          <Skeleton key={skeletonKey} className="h-20 w-full" />
+        ))}
+      </div>
+    );
+  } else {
+    monthContent = (
+      <ColumnSortableContext columnId={{ year, month }} cards={cards}>
+        <ol className="min-h-20 space-y-2" aria-live="polite">
+          {cards.length !== 0 && cards
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((card) => (
+              <li key={card.id}>
+                <CardItem card={card} year={year} month={month} isMoving={isMoving} isBeingMoved={movingCardId === card.id} />
+              </li>
+            ))}
+        </ol>
+      </ColumnSortableContext>
+    );
+  }
 
   return (
     <section
@@ -55,33 +90,7 @@ export const MonthColumn = ({
           </button>
         </h2>
       </div>
-      {isError ? (
-        <div className="rounded-md border border-destructive/40 p-3 text-sm text-muted-foreground">
-          <p>Could not load this month.</p>
-          <button type="button" onClick={onRetry} className="mt-1 underline">Try again</button>
-        </div>
-      ) : isLoading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, index) => (
-            <Skeleton key={index} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : (
-        <ColumnSortableContext columnId={{ year, month }} cards={cards}>
-          <ol className="min-h-20 space-y-2" role="list" aria-live="polite">
-            {cards.length !== 0 && (
-              cards
-                .slice()
-                .sort((a, b) => a.order - b.order)
-                .map((card) => (
-                  <li key={card.id}>
-                    <CardItem card={card} year={year} month={month} isMoving={isMoving} isBeingMoved={movingCardId === card.id} />
-                  </li>
-                ))
-            )}
-          </ol>
-        </ColumnSortableContext>
-      )}
+      {monthContent}
       <AddCardForm column={column} year={year} month={month} />
     </section>
   );

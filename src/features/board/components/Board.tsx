@@ -302,7 +302,8 @@ export const Board = () => {
             const isCollapsed = collapsedMonths.some((item) => item.year === month.year && item.month === month.month);
             if (!isCollapsed) return <MonthQueryColumn key={`${month.year}-${month.month}`} month={month} isCurrent={month.year === current?.year && month.month === current?.month} isMoving={isMoving || isCreating} movingCardId={movingCardId} onCollapse={() => collapseMonth(month)} />;
             const count = summaries.data?.[`${month.year}-${month.month}`]?.card_count ?? 0;
-            return <button key={`${month.year}-${month.month}`} type="button" aria-label={`${month.year}-${month.month}: ${summaries.isFetching ? "loading card total" : `${count} cards`}`} className="relative flex w-12 flex-none items-center justify-center border-r border-border/70 hover:bg-muted" onClick={() => {
+            const totalLabel = summaries.isFetching ? "loading card total" : `${count} cards`;
+            return <button key={`${month.year}-${month.month}`} type="button" aria-label={`${month.year}-${month.month}: ${totalLabel}`} className="relative flex w-12 flex-none items-center justify-center border-r border-border/70 hover:bg-muted" onClick={() => {
               expandMonth(month);
             }}><span className="absolute top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-4">{summaries.isFetching ? <LoaderCircle className="h-3 w-3 animate-spin" role="status" aria-label="Loading card total" /> : count}</span><span className="[writing-mode:vertical-rl] rotate-180 text-xs">{new Date(month.year, month.month - 1).toLocaleDateString(undefined, { month: "short", year: "2-digit" })}</span></button>;
           })}

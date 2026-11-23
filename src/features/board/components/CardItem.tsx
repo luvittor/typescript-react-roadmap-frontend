@@ -7,8 +7,7 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { cn } from "../../../lib/utils";
 import { getNextStatus, getStatusLabel } from "../../../utils/status";
-import type { Card } from "../types";
-import type { CardColor } from "../types";
+import type { Card, CardColor } from "../types";
 import {
   useDeleteCard,
   useUpdateCardStatus,
@@ -30,6 +29,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [value, setValue] = useState(card.title);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const statusCheckboxRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -59,6 +59,9 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
     disabled: preview || isMoving || isSaving,
     data: { card, year, month },
   });
+  const sortableAttributes = { ...attributes, role: undefined };
+  const isStatusInProgress = card.status === "in_progress";
+  const isStatusCompleted = card.status === "completed";
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -76,6 +79,12 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
     setValue(card.title);
   }, [card.title]);
 
+  useEffect(() => {
+    if (statusCheckboxRef.current) {
+      statusCheckboxRef.current.indeterminate = isStatusInProgress;
+    }
+  }, [isStatusInProgress]);
+
   const handleStatusToggle = () => updateStatus(getNextStatus(card.status));
 
   const handleSubmit = async () => {
@@ -89,22 +98,16 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   };
 
   return (
-    <div
+    <fieldset
       ref={preview ? undefined : setNodeRef}
       style={style}
-      {...(preview ? {} : attributes)}
+      {...(preview ? {} : sortableAttributes)}
+      {...(preview ? {} : listeners)}
+      role={undefined}
       aria-busy={isSaving}
       aria-label={`Roadmap card: ${card.title || "Untitled"}`}
       aria-disabled={isMoving || isSaving}
-      role="group"
-      tabIndex={isMoving || isSaving ? -1 : 0}
-      onPointerDown={(event) => {
-        if (preview) return;
-        listeners?.onPointerDown?.(event);
-      }}
-      onKeyDown={(event) => {
-        if (event.target === event.currentTarget) listeners?.onKeyDown?.(event);
-      }}
+      tabIndex={preview || isMoving || isSaving ? -1 : 0}
       className={cn(
         "group touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
         ({ slate: "border-l-4 border-l-slate-400", teal: "border-l-4 border-l-teal-500", green: "border-l-4 border-l-green-500", yellow: "border-l-4 border-l-yellow-400", blue: "border-l-4 border-l-blue-500" } as Record<string, string>)[card.color ?? "slate"],
@@ -113,22 +116,22 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
       )}
     >
       <div data-testid="card-main-row" className="flex items-center gap-2">
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={card.status === "not_started" ? false : card.status === "in_progress" ? "mixed" : true}
-          className={cn(
-            "inline-flex h-4 w-4 flex-none items-center justify-center overflow-hidden rounded-[4px] border border-foreground/80 bg-background text-white transition hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            card.status !== "not_started" && "border-sky-500 bg-sky-500",
-          )}
-          onClick={handleStatusToggle}
-          disabled={isSaving}
-          aria-label={`Status: ${getStatusLabel(card.status)}. Activate to mark ${getStatusLabel(getNextStatus(card.status))}`}
-          title={getStatusLabel(card.status)}
-        >
-          {card.status === "in_progress" && <span className="h-0.5 w-2 rounded-full bg-white" aria-hidden="true" />}
-          {card.status === "completed" && <Check className="h-3 w-3" aria-hidden="true" />}
-        </button>
+        <label className="relative inline-flex h-4 w-4 flex-none items-center justify-center">
+          <input
+            ref={statusCheckboxRef}
+            type="checkbox"
+            checked={isStatusCompleted}
+            onChange={handleStatusToggle}
+            disabled={isSaving}
+            aria-label={`Status: ${getStatusLabel(card.status)}. Activate to mark ${getStatusLabel(getNextStatus(card.status))}`}
+            title={getStatusLabel(card.status)}
+            className={cn(
+              "h-4 w-4 appearance-none rounded-[4px] border border-foreground/80 bg-background transition hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring checked:border-sky-500 checked:bg-sky-500 indeterminate:border-sky-500 indeterminate:bg-sky-500",
+            )}
+          />
+          {isStatusInProgress && <span className="pointer-events-none absolute h-0.5 w-2 rounded-full bg-white" aria-hidden="true" />}
+          {isStatusCompleted && <Check className="pointer-events-none absolute h-3 w-3 text-white" aria-hidden="true" />}
+        </label>
 
         <div className="min-w-0 flex-1">
           {isEditing ? (
@@ -168,7 +171,6 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
             className="relative flex-none"
             ref={menuRef}
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
           >
             <Button
               type="button"
@@ -217,6 +219,6 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
           </div>
         )}
       </div>
-    </div>
+    </fieldset>
   );
 };

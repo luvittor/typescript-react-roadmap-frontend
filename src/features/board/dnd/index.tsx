@@ -1,6 +1,5 @@
 import {
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCorners,
@@ -11,10 +10,10 @@ import {
 import {
   SortableContext,
   arrayMove,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { createContext } from "react";
+import { createContext, useMemo } from "react";
 
 import type { Card } from "../types";
 import type { MonthKey } from "../../../utils/date";
@@ -55,13 +54,17 @@ export const BoardDndProvider = ({
   onDragEnd: (event: DragEndEvent) => void;
   activeCard: Card | null;
   children: React.ReactNode;
-}) => (
-  <BoardDndContext.Provider value={{ onDragEnd, activeCard }}>
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
-      {children}
-    </DndContext>
-  </BoardDndContext.Provider>
-);
+}) => {
+  const contextValue = useMemo(() => ({ onDragEnd, activeCard }), [onDragEnd, activeCard]);
+
+  return (
+    <BoardDndContext.Provider value={contextValue}>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+        {children}
+      </DndContext>
+    </BoardDndContext.Provider>
+  );
+};
 
 export const ColumnSortableContext = ({
   columnId,
@@ -81,4 +84,4 @@ export const ColumnSortableContext = ({
   </SortableContext>
 );
 
-export { DragOverlay };
+export { DragOverlay } from "@dnd-kit/core";

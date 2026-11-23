@@ -266,23 +266,26 @@ describe("Board", () => {
     const actionRow = cardItem.getByTestId("card-main-row");
     expect(within(actionRow).getByRole("button", { name: "Card options" })).toBeInTheDocument();
     expect(within(actionRow).getByRole("button", { name: "Status card" })).toBeInTheDocument();
-    expect(statusCheckbox).toHaveAttribute("aria-checked", "false");
+    expect(statusCheckbox).not.toBeChecked();
+    expect(statusCheckbox).not.toHaveProperty("indeterminate", true);
 
     const user = userEvent.setup();
     await user.click(statusCheckbox);
     await waitFor(() => expect(updateStatusMock).toHaveBeenCalledWith(73, "in_progress"));
-    await waitFor(() => expect(statusCheckbox).toHaveAttribute("aria-checked", "mixed"));
-    expect(statusCheckbox).toHaveClass("bg-sky-500");
-    expect(statusCheckbox.querySelector("span")).toHaveClass("h-0.5", "w-2", "bg-white");
+    await waitFor(() => expect(statusCheckbox).toHaveProperty("indeterminate", true));
+    expect(statusCheckbox).toHaveClass("indeterminate:bg-sky-500");
+    expect(statusCheckbox.closest("label")?.querySelector("span")).toHaveClass("h-0.5", "w-2", "bg-white");
     await waitFor(() => expect(statusCheckbox).toBeEnabled());
 
     await user.click(statusCheckbox);
     await waitFor(() => expect(updateStatusMock).toHaveBeenCalledWith(73, "completed"));
-    await waitFor(() => expect(statusCheckbox).toHaveAttribute("aria-checked", "true"));
+    await waitFor(() => expect(statusCheckbox).toBeChecked());
+    expect(statusCheckbox).not.toHaveProperty("indeterminate", true);
     await waitFor(() => expect(statusCheckbox).toBeEnabled());
 
     await user.click(statusCheckbox);
-    await waitFor(() => expect(statusCheckbox).toHaveAttribute("aria-checked", "false"));
+    await waitFor(() => expect(statusCheckbox).not.toBeChecked());
+    expect(statusCheckbox).not.toHaveProperty("indeterminate", true);
   });
 
   it("selects and persists a card color independently from its status", async () => {
@@ -308,7 +311,7 @@ describe("Board", () => {
     await user.click(teal);
 
     await waitFor(() => expect(updateColorMock).toHaveBeenCalledWith(74, "teal"));
-    expect(checkbox).toHaveAttribute("aria-checked", "mixed");
+    expect(checkbox).toHaveProperty("indeterminate", true);
     expect(item.queryByRole("menu")).not.toBeInTheDocument();
     expect(item.getByRole("button", { name: "Card options" })).toBeInTheDocument();
     await waitFor(() => expect(item.getByRole("group", { name: "Roadmap card: Colored card" })).toHaveClass("border-l-teal-500"));
@@ -329,9 +332,9 @@ describe("Board", () => {
     await userEvent.setup().pointer([{ keys: "[MouseLeft>]",
       target: context,
     }]);
-    const checkboxes = screen.getAllByText((_, element) => element?.tagName.toLowerCase() === "svg");
-    expect(fixedCheckbox).toHaveClass("h-4", "w-4", "bg-sky-500");
-    expect(fixedCheckbox.querySelector("svg")).toHaveClass("h-3", "w-3");
+    expect(fixedCheckbox).toBeChecked();
+    expect(fixedCheckbox).toHaveClass("h-4", "w-4", "checked:bg-sky-500");
+    expect(fixedCheckbox.closest("label")?.querySelector("svg")).toHaveClass("h-3", "w-3");
   });
 
   it("rolls back optimistic card creation on error", async () => {

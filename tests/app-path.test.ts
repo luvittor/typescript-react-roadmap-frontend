@@ -18,4 +18,12 @@ describe("deployment paths", () => {
     expect(getRouterBasename(baseUrl, currentUrl)).toBe("/");
     expect(getLoginPath(baseUrl, currentUrl)).toBe("/login");
   });
+
+  it("normalizes nested deployment paths with repeated trailing slashes", () => {
+    const baseUrl = "./";
+    const currentUrl = "https://example.test/roadmap/board////";
+
+    expect(getRouterBasename(baseUrl, currentUrl)).toBe("/roadmap");
+    expect(getLoginPath(baseUrl, currentUrl)).toBe("/roadmap/login");
+  });
 });

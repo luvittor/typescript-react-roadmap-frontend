@@ -1,5 +1,5 @@
 import { Slot } from "@radix-ui/react-slot";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -14,7 +14,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 const THEME_KEY = "monthly-roadmap-theme";
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
+  const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") return "dark";
     const stored = window.localStorage.getItem(THEME_KEY) as Theme | null;
     if (stored) return stored;
@@ -28,11 +28,13 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  const setTheme = (value: Theme) => setThemeState(value);
-  const toggleTheme = () => setThemeState((prev) => (prev === "light" ? "dark" : "light"));
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  }, []);
+  const contextValue = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       <Slot>{children}</Slot>
     </ThemeContext.Provider>
   );
