@@ -91,7 +91,12 @@ export const MonthColumn = ({
         </h2>
       </div>
       {monthContent}
-      <AddCardForm column={column} year={year} month={month} />
+      <AddCardForm
+        column={column}
+        year={year}
+        month={month}
+        nextOrder={cards.reduce((lastOrder, card) => Math.max(lastOrder, card.order), 0) + 1}
+      />
     </section>
   );
 };

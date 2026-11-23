@@ -50,11 +50,10 @@ export const useCreateCard = (year: number, month: number) => {
 
       queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
         const column = current?.column ?? { id: input.column_id };
-        const cards: Card[] = current?.cards ?? [];
-        const shifted = cards.map((card) => ({ ...card, order: card.order + 1 }));
+        const cards = [...(current?.cards ?? [])].sort((a, b) => a.order - b.order);
         return {
           column,
-          cards: [optimistic, ...shifted],
+          cards: [...cards, optimistic],
         };
       });
 

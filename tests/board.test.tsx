@@ -230,6 +230,26 @@ describe("Board", () => {
     });
   });
 
+  it("wraps long card titles without widening the card", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    const title = "A long card title ".repeat(8).trim();
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: { id: year * 10 + currentMonth, year, month: currentMonth, user_id: 1 },
+      cards: year === month.year && currentMonth === month.month
+        ? [{ id: 76, column_id: year * 10 + currentMonth, order: 1, title, status: "not_started" as const }]
+        : [],
+    }));
+
+    renderWithProviders(<Board />, { route: "/board" });
+
+    const titleButton = await screen.findByRole("button", { name: title });
+    const card = within(titleButton.closest("li")!).getByRole("group", { name: `Roadmap card: ${title}` });
+
+    expect(card).toHaveClass("min-w-0", "w-full");
+    expect(titleButton).toHaveClass("whitespace-normal", "break-words");
+    expect(titleButton).not.toHaveClass("truncate");
+  });
+
   it("keeps drag and delete controls labelled and keyboard focusable with discreet styling", async () => {
     const [month] = getConsecutiveMonths(new Date(), 6);
     getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
@@ -381,6 +401,47 @@ describe("Board", () => {
       expect(screen.queryByText("New Task")).not.toBeInTheDocument();
     });
     expect(screen.getByText("Existing")).toBeInTheDocument();
+  });
+
+  it("adds a new card after the existing cards in its month", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    const column = { id: 1201, year: month.year, month: month.month, user_id: 1 };
+    const cards: Card[] = [
+      { id: 1, column_id: column.id, order: 1, title: "First card", status: "not_started" },
+      { id: 2, column_id: column.id, order: 2, title: "Second card", status: "not_started" },
+    ];
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: year === month.year && currentMonth === month.month ? column : null,
+      cards: year === month.year && currentMonth === month.month ? cards : [],
+    }));
+    createCardMock.mockImplementation(async (input: { column_id: number; order: number; title?: string }) => {
+      const created: Card = {
+        id: 3,
+        column_id: input.column_id,
+        order: input.order,
+        title: input.title ?? "",
+        status: "not_started",
+      };
+      cards.push(created);
+      return created;
+    });
+
+    renderWithProviders(<Board />, { route: "/board" });
+
+    const monthColumn = await screen.findByRole("region", { name: formatMonthLabel(month) });
+    const user = userEvent.setup();
+    await user.click(within(monthColumn).getByRole("button", { name: `Add card to ${month.month}/${month.year}` }));
+    await user.type(within(monthColumn).getByPlaceholderText("Add card"), "Last card");
+    await user.click(within(monthColumn).getByRole("button", { name: "Add card", exact: true }));
+
+    await waitFor(() => {
+      expect(createCardMock.mock.calls[0]?.[0]).toEqual({ column_id: column.id, order: 3, title: "Last card" });
+      expect(within(monthColumn).getAllByRole("group").map((card) => card.getAttribute("aria-label"))).toEqual([
+        "Roadmap card: First card",
+        "Roadmap card: Second card",
+        "Roadmap card: Last card",
+      ]);
+    });
   });
 
   it("prevents moving a new card until creation and month refresh finish", async () => {

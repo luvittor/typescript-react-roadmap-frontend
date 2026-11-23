@@ -105,7 +105,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
       aria-disabled={isMoving || isSaving}
       tabIndex={preview || isMoving || isSaving ? -1 : 0}
       className={cn(
-        "group touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        "group min-w-0 w-full touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
         ({ slate: "border-l-4 border-l-slate-400", teal: "border-l-4 border-l-teal-500", green: "border-l-4 border-l-green-500", yellow: "border-l-4 border-l-yellow-400", blue: "border-l-4 border-l-blue-500" } as Record<string, string>)[card.color ?? "slate"],
         !isMoving && !isSaving && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
@@ -149,7 +149,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
           ) : (
             <button
               type="button"
-              className="w-full truncate text-left text-sm font-medium"
+              className="w-full whitespace-normal break-words text-left text-sm font-medium"
               onClick={() => {
                 setDraftTitle(card.title);
                 setIsEditing(true);
