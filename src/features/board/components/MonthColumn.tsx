@@ -19,6 +19,7 @@ export const MonthColumn = ({
   isCurrent,
   isError,
   onRetry,
+  onCollapse,
 }: {
   column?: Column | null;
   cards: Card[];
@@ -30,6 +31,7 @@ export const MonthColumn = ({
   isCurrent: boolean;
   isError: boolean;
   onRetry: () => void;
+  onCollapse: () => void;
 }) => {
   const monthLabel = useMemo(() => formatMonthLabel({ year, month }), [year, month]);
   const { active, over } = useDndContext();
@@ -48,7 +50,9 @@ export const MonthColumn = ({
     >
       <div className="flex min-h-12 items-center">
         <h2 id={`column-${year}-${month}`} className={`text-3xl font-semibold tracking-tight sm:text-4xl ${isCurrent ? "text-primary" : ""}`}>
-          {monthLabel}
+          <button type="button" onClick={onCollapse} aria-label={`Collapse ${monthLabel}`} className="rounded-sm text-left hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {monthLabel}
+          </button>
         </h2>
       </div>
       {isError ? (

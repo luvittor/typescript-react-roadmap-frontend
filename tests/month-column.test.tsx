@@ -36,6 +36,7 @@ describe("MonthColumn drop target", () => {
         isCurrent
         isError={false}
         onRetry={() => {}}
+        onCollapse={() => {}}
       />,
     );
 

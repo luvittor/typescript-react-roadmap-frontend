@@ -63,7 +63,7 @@ describe("Board", () => {
     expect(isNearMonthStripEnd({ scrollLeft: 400, clientWidth: 1200, scrollWidth: 2040 })).toBe(true);
   });
 
-  it("starts with the previous month collapsed beside the current open month and navigates when selected", async () => {
+  it("opens only the selected collapsed month and preserves the timeline scroll position", async () => {
     const [first] = getConsecutiveMonths(new Date(), 1);
     const previous = getConsecutiveMonths(new Date(first.year, first.month - 2, 1), 1)[0];
     getMonthSummariesMock.mockResolvedValue({ [`${previous.year}-${previous.month}`]: { year: previous.year, month: previous.month, card_count: 3 } });
@@ -74,9 +74,35 @@ describe("Board", () => {
     const current = getConsecutiveMonths(new Date(), 1)[0];
     const currentColumn = screen.getByRole("region", { name: formatMonthLabel(current) });
     expect(monthButton.compareDocumentPosition(currentColumn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const next = getConsecutiveMonths(new Date(current.year, current.month, 1), 1)[0];
+    const nextColumn = screen.getByRole("region", { name: formatMonthLabel(next) });
+    const strip = screen.getByTestId("month-strip");
+    Object.defineProperty(strip, "scrollLeft", { configurable: true, value: 120, writable: true });
     await userEvent.setup().click(monthButton);
     expect(await screen.findByRole("region", { name: formatMonthLabel(previous) })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: new RegExp(`${previous.year}-${previous.month}:`) })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: formatMonthLabel(current) })).toBe(currentColumn);
+    expect(screen.getByRole("region", { name: formatMonthLabel(next) })).toBe(nextColumn);
+    await waitFor(() => expect(strip.scrollLeft).toBe(120));
+  });
+
+  it("keeps multiple months expanded and collapses a month when its title is clicked", async () => {
+    const [current] = getConsecutiveMonths(new Date(), 1);
+    const previous = getConsecutiveMonths(new Date(current.year, current.month - 2, 1), 1)[0];
+    getMonthSummariesMock.mockResolvedValue({});
+    getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
+    renderWithProviders(<Board />, { route: "/board" });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: new RegExp(`${previous.year}-${previous.month}:`) }));
+    expect(await screen.findByRole("region", { name: formatMonthLabel(previous) })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: `Collapse ${formatMonthLabel(current)}` }));
+    expect(screen.queryByRole("region", { name: formatMonthLabel(current) })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: formatMonthLabel(previous) })).toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: new RegExp(`${current.year}-${current.month}:`) }));
+    expect(await screen.findByRole("region", { name: formatMonthLabel(current) })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: formatMonthLabel(previous) })).toBeInTheDocument();
   });
 
   it("shows a spinner in each collapsed month while totals are loading", async () => {
@@ -84,23 +110,24 @@ describe("Board", () => {
     getMonthSummariesMock.mockImplementation(() => new Promise((resolve) => { resolveTotals = resolve; }));
     getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
     renderWithProviders(<Board />, { route: "/board" });
-    const rail = screen.getByRole("navigation", { name: "Earlier months" });
-    expect(within(rail).getByRole("status", { name: "Loading card total" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading card total" })).toBeInTheDocument();
     await act(async () => resolveTotals({}));
-    await waitFor(() => expect(within(rail).queryByRole("status", { name: "Loading card total" })).not.toBeInTheDocument());
-    expect(within(rail).getByRole("button")).toHaveTextContent("0");
+    await waitFor(() => expect(screen.queryByRole("status", { name: "Loading card total" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /cards$/ })).toHaveTextContent("0");
   });
 
   it("adds older months as collapsed tabs when the timeline scrolls left", async () => {
     getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
     renderWithProviders(<Board />, { route: "/board" });
     const strip = screen.getByTestId("month-strip");
-    expect(screen.getByRole("navigation", { name: "Earlier months" }).children).toHaveLength(1);
+    const [current] = getConsecutiveMonths(new Date(), 1);
+    const previous = getConsecutiveMonths(new Date(current.year, current.month - 2, 1), 1)[0];
+    await screen.findByRole("button", { name: `${previous.year}-${previous.month}: 0 cards` });
     Object.defineProperty(strip, "scrollLeft", { configurable: true, value: 0, writable: true });
     Object.defineProperty(strip, "clientWidth", { configurable: true, value: 800 });
     Object.defineProperty(strip, "scrollWidth", { configurable: true, value: 2000 });
     fireEvent.scroll(strip);
-    await waitFor(() => expect(screen.getByRole("navigation", { name: "Earlier months" }).children.length).toBeGreaterThan(1));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /\d{4}-\d{1,2}: \d+ cards/ }).length).toBeGreaterThan(1));
   });
 
   it("provides left and right timeline arrows that scroll the month strip", async () => {
