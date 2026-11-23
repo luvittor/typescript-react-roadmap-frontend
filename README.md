@@ -8,13 +8,13 @@ cd typescript-react-roadmap-frontend
 cp .env.example .env
 ```
 
-Edit `.env` and set the variables defined inside. Only `VITE_API_URL` is required and should point to the [php-laravel-roadmap-backend](https://github.com/luvittor/php-laravel-roadmap-backend) project API.
+Edit `.env` and set `VITE_API_BASE_URL` to the [php-laravel-roadmap-backend](https://github.com/luvittor/php-laravel-roadmap-backend) API URL. For local development, the example points to `http://localhost:8000`.
 
 Choose one of the following methods to run the project:
 
 ### No-Container
 
-Use Node `20.14.0` (see `.nvmrc`).
+Use Node `24.15.0` (see `.nvmrc`).
 
 ```bash
 npm ci
@@ -38,9 +38,10 @@ npm run preview # serves the production build locally
 
 ### Github Actions Deploy to Dreamhost
 
-Deployment needs these variables to be set:
+Set the GitHub Actions variable `VITE_API_BASE_URL` to the backend directory base path, without `/public/`. The workflow passes this value to the Vite build without defining a production URL in the repository; Laravel routes are appended under `/api/v1`.
 
- - vars.VITE_API_URL: URL to [php-laravel-roadmap-backend](https://github.com/luvittor/php-laravel-roadmap-backend) project API.
+Deployment needs these secrets to be set:
+
  - secrets.SFTP_HOST: Dreamhost SFTP host for deployment.
  - secrets.SFTP_USERNAME: Dreamhost SFTP username for deployment.
  - secrets.SFTP_PASSWORD: Dreamhost SFTP password for deployment.

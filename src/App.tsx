@@ -1,42 +1,126 @@
-import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-export default function App() {
-  const [response, setResponse] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+import { LoginForm } from "./features/auth/components/LoginForm";
+import { RegisterForm } from "./features/auth/components/RegisterForm";
+import { Board } from "./features/board/components/Board";
+import { useAuthStore } from "./store/auth-store";
+import { Button } from "./components/ui/button";
+import { Toaster } from "sonner";
+import { useLogout } from "./features/auth/hooks/useAuth";
 
-  const API_URL = import.meta.env.VITE_API_URL as string;
-
-  useEffect(() => {
-    // Quando o componente montar, faz a requisição ao endpoint
-    fetch(`${API_URL}ping`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Status ${res.status}`);
-        }
-        return res.text();
-      })
-      .then((text) => {
-        setResponse(text);
-      })
-      .catch((err) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [API_URL]);
-
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Ping API</h1>
-      {loading && <p>Carregando...</p>}
-      {error && <p style={{ color: "red" }}>Erro: {error}</p>}
-      {response && (
-        <p>
-          Resposta do servidor: <strong>{response}</strong>
-        </p>
-      )}
+const AuthLayout = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-10 shadow-xl">
+      {children}
     </div>
+  </div>
+);
+
+const AppLayout = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <header className="flex items-center justify-between border-b border-border px-5 py-3 sm:px-8">
+      <div className="flex items-center gap-2">
+        <img src={`${import.meta.env.BASE_URL}roadmap-mark.svg`} alt="" className="h-10 w-10 object-contain" />
+        <span className="text-lg font-semibold">Roadmap</span>
+      </div>
+      <LogoutButton />
+    </header>
+    <main className="flex flex-1 flex-col px-0 py-4 sm:py-6">{children}</main>
+  </div>
+);
+
+const LogoutButton = () => {
+  const token = useAuthStore((state) => state.token);
+  const { mutate, isPending } = useLogout();
+  if (!token) return null;
+  return (
+    <Button variant="ghost" size="sm" onClick={() => mutate()} disabled={isPending}>
+      {isPending ? "Signing out..." : "Sign out"}
+    </Button>
   );
-}
+};
+
+const RequireAuth = ({ children }: { children: React.ReactNode }) => {
+  const token = useAuthStore((state) => state.token);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
+
+  if (!isHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const RedirectIfAuthed = ({ children }: { children: React.ReactNode }) => {
+  const token = useAuthStore((state) => state.token);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
+
+  if (!isHydrated) {
+    return null;
+  }
+
+  if (token) {
+    return <Navigate to="/board" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export const App = () => {
+  return (
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <RedirectIfAuthed>
+              <AuthLayout>
+                <div className="mb-6 space-y-2 text-center">
+                  <h1 className="text-2xl font-semibold">Welcome</h1>
+                  <p className="text-sm text-muted-foreground">Sign in to access your roadmap.</p>
+                </div>
+                <LoginForm />
+              </AuthLayout>
+            </RedirectIfAuthed>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <RedirectIfAuthed>
+              <AuthLayout>
+                <div className="mb-6 space-y-2 text-center">
+                  <h1 className="text-2xl font-semibold">Create account</h1>
+                  <p className="text-sm text-muted-foreground">Start tracking your plans.</p>
+                </div>
+                <RegisterForm />
+              </AuthLayout>
+            </RedirectIfAuthed>
+          }
+        />
+        <Route
+          path="/board"
+          element={
+            <RequireAuth>
+              <AppLayout>
+                <Board />
+              </AppLayout>
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/board" replace />} />
+      </Routes>
+      <Toaster richColors position="top-right" />
+    </>
+  );
+};
+
+export default App;
