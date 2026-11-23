@@ -99,6 +99,11 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
       style={style}
       {...(preview ? {} : sortableAttributes)}
       {...(preview ? {} : listeners)}
+      onKeyDown={(event) => {
+        if (!preview && event.target === event.currentTarget) {
+          listeners?.onKeyDown?.(event);
+        }
+      }}
       role={undefined}
       aria-busy={isSaving}
       aria-label={`Roadmap card: ${card.title || "Untitled"}`}
