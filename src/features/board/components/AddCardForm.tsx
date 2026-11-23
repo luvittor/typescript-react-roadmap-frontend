@@ -9,7 +9,7 @@ import { cardTitleSchema, type CardTitleInput } from "../../../lib/validators";
 import type { Column } from "../types";
 import { useCreateCard, useEnsureMonthColumn } from "../hooks/useBoard";
 
-export const AddCardForm = ({ column, year, month }: { column?: Column | null; year: number; month: number }) => {
+export const AddCardForm = ({ column, year, month, nextOrder }: { column?: Column | null; year: number; month: number; nextOrder: number }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [resolvedColumn, setResolvedColumn] = useState<Column | null>(column ?? null);
   const form = useForm<CardTitleInput>({
@@ -35,7 +35,7 @@ export const AddCardForm = ({ column, year, month }: { column?: Column | null; y
     try {
       const targetColumn = resolvedColumn ?? column;
       if (!targetColumn) return;
-      await mutateAsync({ column_id: targetColumn.id, order: 1, title });
+      await mutateAsync({ column_id: targetColumn.id, order: nextOrder, title });
       form.reset();
       setIsOpen(false);
     } catch {

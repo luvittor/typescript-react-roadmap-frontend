@@ -22,7 +22,7 @@ export const boardApi = {
     );
     return data;
   },
-  createCard: async (payload: { column_id: number; order: number; title?: string }) => {
+  createCard: async (payload: { column_id: number; order: number; title?: string; color?: CardColor }) => {
     const { data } = await api.post<Card>(`${basePath}/cards`, payload);
     return data;
   },

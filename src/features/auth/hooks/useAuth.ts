@@ -5,6 +5,15 @@ import { toast } from "sonner";
 import { authApi } from "../api";
 import { useAuthStore } from "../../../store/auth-store";
 
+const getAuthErrorMessage = (error: unknown, fallback: string) => {
+  if (!error || typeof error !== "object" || !("response" in error)) return fallback;
+  const response = error.response;
+  if (!response || typeof response !== "object" || !("data" in response)) return fallback;
+  const data = response.data;
+  if (!data || typeof data !== "object" || !("message" in data)) return fallback;
+  return typeof data.message === "string" ? data.message : fallback;
+};
+
 export const useLogin = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -18,10 +27,7 @@ export const useLogin = () => {
       toast.success("Welcome back!");
       navigate("/board");
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.message ?? "Unable to login";
-      toast.error(message);
-    },
+    onError: (error) => toast.error(getAuthErrorMessage(error, "Unable to login")),
   });
 };
 
@@ -38,10 +44,7 @@ export const useRegister = () => {
       toast.success("Account created");
       navigate("/board");
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.message ?? "Unable to register";
-      toast.error(message);
-    },
+    onError: (error) => toast.error(getAuthErrorMessage(error, "Unable to register")),
   });
 };
 

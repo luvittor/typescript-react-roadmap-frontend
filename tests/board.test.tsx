@@ -11,15 +11,29 @@ import { cardsKey } from "../src/features/board/hooks/useBoard";
 import type { Card } from "../src/features/board/types";
 import { getConsecutiveMonths, formatMonthLabel } from "../src/utils/date";
 
-const getCardsMock = vi.fn();
-const getMonthSummariesMock = vi.fn();
-const createCardMock = vi.fn();
-const updatePositionMock = vi.fn();
-const updateTitleMock = vi.fn();
-const updateStatusMock = vi.fn();
-const updateColorMock = vi.fn();
-const removeCardMock = vi.fn();
-const getCardMock = vi.fn();
+const {
+  getCardsMock,
+  getMonthSummariesMock,
+  ensureColumnMock,
+  createCardMock,
+  updatePositionMock,
+  updateTitleMock,
+  updateStatusMock,
+  updateColorMock,
+  removeCardMock,
+  getCardMock,
+} = vi.hoisted(() => ({
+  getCardsMock: vi.fn(),
+  getMonthSummariesMock: vi.fn(),
+  ensureColumnMock: vi.fn(),
+  createCardMock: vi.fn(),
+  updatePositionMock: vi.fn(),
+  updateTitleMock: vi.fn(),
+  updateStatusMock: vi.fn(),
+  updateColorMock: vi.fn(),
+  removeCardMock: vi.fn(),
+  getCardMock: vi.fn(),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -37,15 +51,16 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
 
 vi.mock("../src/features/board/api", () => ({
   boardApi: {
-    getCards: (...args: any[]) => getCardsMock(...args),
-    getMonthSummaries: (...args: any[]) => getMonthSummariesMock(...args),
-    createCard: (...args: any[]) => createCardMock(...args),
-    updatePosition: (...args: any[]) => updatePositionMock(...args),
-    updateTitle: (...args: any[]) => updateTitleMock(...args),
-    updateStatus: (...args: any[]) => updateStatusMock(...args),
-    updateColor: (...args: any[]) => updateColorMock(...args),
-    removeCard: (...args: any[]) => removeCardMock(...args),
-    getCard: (...args: any[]) => getCardMock(...args),
+    ensureColumn: ensureColumnMock,
+    getCards: getCardsMock,
+    getMonthSummaries: getMonthSummariesMock,
+    createCard: createCardMock,
+    updatePosition: updatePositionMock,
+    updateTitle: updateTitleMock,
+    updateStatus: updateStatusMock,
+    updateColor: updateColorMock,
+    removeCard: removeCardMock,
+    getCard: getCardMock,
   },
 }));
 
@@ -54,6 +69,7 @@ describe("Board", () => {
     resetAuthStore();
     vi.clearAllMocks();
     getMonthSummariesMock.mockResolvedValue({});
+    ensureColumnMock.mockImplementation(async (year: number, month: number) => ({ id: year * 10 + month, year, month, user_id: 1 }));
     useAuthStore.setState({ token: "token", user: { id: 1, email: "user@example.com" }, isHydrated: true });
   });
 
@@ -67,7 +83,7 @@ describe("Board", () => {
     const [first] = getConsecutiveMonths(new Date(), 1);
     const previous = getConsecutiveMonths(new Date(first.year, first.month - 2, 1), 1)[0];
     getMonthSummariesMock.mockResolvedValue({ [`${previous.year}-${previous.month}`]: { year: previous.year, month: previous.month, card_count: 3 } });
-    getCardsMock.mockImplementation(async (year: number, month: number) => ({ column: null, cards: [] }));
+    getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
     renderWithProviders(<Board />, { route: "/board" });
     const monthButton = await screen.findByRole("button", { name: new RegExp(`${previous.year}-${previous.month}: 3 cards`) });
     expect(monthButton).toHaveTextContent("3");
@@ -218,6 +234,26 @@ describe("Board", () => {
     });
   });
 
+  it("wraps long card titles without widening the card", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    const title = "A long card title ".repeat(8).trim();
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: { id: year * 10 + currentMonth, year, month: currentMonth, user_id: 1 },
+      cards: year === month.year && currentMonth === month.month
+        ? [{ id: 76, column_id: year * 10 + currentMonth, order: 1, title, status: "not_started" as const }]
+        : [],
+    }));
+
+    renderWithProviders(<Board />, { route: "/board" });
+
+    const titleButton = await screen.findByRole("button", { name: title });
+    const card = within(titleButton.closest("li")!).getByRole("group", { name: `Roadmap card: ${title}` });
+
+    expect(card).toHaveClass("min-w-0", "w-full");
+    expect(titleButton).toHaveClass("whitespace-normal", "break-words");
+    expect(titleButton).not.toHaveClass("truncate");
+  });
+
   it("keeps drag and delete controls labelled and keyboard focusable with discreet styling", async () => {
     const [month] = getConsecutiveMonths(new Date(), 6);
     getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
@@ -317,6 +353,75 @@ describe("Board", () => {
     await waitFor(() => expect(item.getByRole("group", { name: "Roadmap card: Colored card" })).toHaveClass("border-l-teal-500"));
   });
 
+  it("duplicates a card into the next month with its title and color and resets its status", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    const nextMonth = month.month === 12
+      ? { year: month.year + 1, month: 1 }
+      : { year: month.year, month: month.month + 1 };
+    const sourceColumnId = month.year * 10 + month.month;
+    const targetColumnId = nextMonth.year * 10 + nextMonth.month;
+    const targetCards: Card[] = [
+      { id: 80, column_id: targetColumnId, order: 1, title: "Existing next month", status: "not_started" },
+    ];
+    let targetSummaryCount = targetCards.length;
+    getMonthSummariesMock.mockImplementation(async () => ({
+      [`${nextMonth.year}-${nextMonth.month}`]: {
+        ...nextMonth,
+        card_count: targetSummaryCount,
+      },
+    }));
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: { id: year * 10 + currentMonth, year, month: currentMonth, user_id: 1 },
+      cards: year === month.year && currentMonth === month.month
+        ? [{ id: 79, column_id: sourceColumnId, order: 1, title: "Copy this task", status: "completed", color: "teal" }]
+        : year === nextMonth.year && currentMonth === nextMonth.month ? targetCards : [],
+    }));
+    createCardMock.mockImplementation(async (input: { column_id: number; order: number; title?: string; color?: Card["color"] }) => {
+      const duplicated: Card = {
+        id: 81,
+        column_id: input.column_id,
+        order: input.order,
+        title: input.title ?? "",
+        status: "not_started",
+        color: input.color,
+      };
+      targetCards.push(duplicated);
+      targetSummaryCount = targetCards.length;
+      return duplicated;
+    });
+
+    renderWithProviders(<Board />, { route: "/board" });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: `Collapse ${formatMonthLabel(nextMonth)}` }));
+    await screen.findByRole("button", { name: `${nextMonth.year}-${nextMonth.month}: 1 cards` });
+    const sourceTitle = await screen.findByRole("button", { name: "Copy this task" });
+    const sourceItem = within(sourceTitle.closest("li")!);
+    await user.click(sourceItem.getByRole("button", { name: "Card options" }));
+
+    const menu = sourceItem.getByRole("menu");
+    const duplicateButton = within(menu).getByRole("menuitem", { name: "Duplicate card to next month" });
+    expect(duplicateButton.compareDocumentPosition(within(menu).getByRole("menuitemradio", { name: "Set card color to Gray" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(menu).getAllByRole("separator")).toHaveLength(2);
+    await user.click(duplicateButton);
+
+    await waitFor(() => expect(createCardMock.mock.calls[0]?.[0]).toEqual({
+      column_id: targetColumnId,
+      order: 2,
+      title: "Copy this task",
+      color: "teal",
+    }));
+    expect(ensureColumnMock).toHaveBeenCalledWith(nextMonth.year, nextMonth.month);
+    await user.click(await screen.findByRole("button", { name: `${nextMonth.year}-${nextMonth.month}: 2 cards` }));
+    const targetColumn = screen.getByRole("region", { name: formatMonthLabel(nextMonth) });
+    const duplicatedTitle = await within(targetColumn).findByRole("button", { name: "Copy this task" });
+    const duplicatedCard = within(duplicatedTitle.closest("li")!);
+    const duplicatedCheckbox = duplicatedCard.getByRole("checkbox");
+    expect(duplicatedCheckbox).not.toBeChecked();
+    expect(duplicatedCheckbox).not.toHaveProperty("indeterminate", true);
+    expect(duplicatedCard.getByRole("group", { name: "Roadmap card: Copy this task" })).toHaveClass("border-l-teal-500");
+    expect(sourceItem.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
   it("renders the same tri-state checkbox content in the fixed card and drag preview", async () => {
     const [month] = getConsecutiveMonths(new Date(), 6);
     getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
@@ -369,6 +474,47 @@ describe("Board", () => {
       expect(screen.queryByText("New Task")).not.toBeInTheDocument();
     });
     expect(screen.getByText("Existing")).toBeInTheDocument();
+  });
+
+  it("adds a new card after the existing cards in its month", async () => {
+    const [month] = getConsecutiveMonths(new Date(), 6);
+    const column = { id: 1201, year: month.year, month: month.month, user_id: 1 };
+    const cards: Card[] = [
+      { id: 1, column_id: column.id, order: 1, title: "First card", status: "not_started" },
+      { id: 2, column_id: column.id, order: 2, title: "Second card", status: "not_started" },
+    ];
+    getCardsMock.mockImplementation(async (year: number, currentMonth: number) => ({
+      column: year === month.year && currentMonth === month.month ? column : null,
+      cards: year === month.year && currentMonth === month.month ? cards : [],
+    }));
+    createCardMock.mockImplementation(async (input: { column_id: number; order: number; title?: string }) => {
+      const created: Card = {
+        id: 3,
+        column_id: input.column_id,
+        order: input.order,
+        title: input.title ?? "",
+        status: "not_started",
+      };
+      cards.push(created);
+      return created;
+    });
+
+    renderWithProviders(<Board />, { route: "/board" });
+
+    const monthColumn = await screen.findByRole("region", { name: formatMonthLabel(month) });
+    const user = userEvent.setup();
+    await user.click(within(monthColumn).getByRole("button", { name: `Add card to ${month.month}/${month.year}` }));
+    await user.type(within(monthColumn).getByPlaceholderText("Add card"), "Last card");
+    await user.click(within(monthColumn).getByRole("button", { name: "Add card", exact: true }));
+
+    await waitFor(() => {
+      expect(createCardMock.mock.calls[0]?.[0]).toEqual({ column_id: column.id, order: 3, title: "Last card" });
+      expect(within(monthColumn).getAllByRole("group").map((card) => card.getAttribute("aria-label"))).toEqual([
+        "Roadmap card: First card",
+        "Roadmap card: Second card",
+        "Roadmap card: Last card",
+      ]);
+    });
   });
 
   it("prevents moving a new card until creation and month refresh finish", async () => {
@@ -438,14 +584,11 @@ describe("Board", () => {
     });
 
     const moveSpy = vi.fn().mockResolvedValue(undefined);
-    const toastSpy = { error: vi.fn(), success: vi.fn() } as any;
-
     const handler = createHandleDragEnd({
       queryClient,
       moveCard: async (payload) => {
         moveSpy(payload);
       },
-      toastImpl: toastSpy,
     });
 
     const event = {

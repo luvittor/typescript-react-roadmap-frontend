@@ -1,13 +1,17 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, Ellipsis, LoaderCircle, Trash2 } from "lucide-react";
+import { Check, Copy, Ellipsis, LoaderCircle, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { cn } from "../../../lib/utils";
 import { getNextStatus, getStatusLabel } from "../../../utils/status";
 import type { Card, CardColor } from "../types";
+import { boardApi } from "../api";
+import { cardsKey, useCreateCard, useEnsureMonthColumn } from "../hooks/useBoard";
 import {
   useDeleteCard,
   useUpdateCardStatus,
@@ -24,13 +28,18 @@ const cardColors: { value: CardColor; label: string; className: string }[] = [
 ];
 
 export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = false }: { card: Card; year: number; month: number; isMoving: boolean; isBeingMoved: boolean; preview?: boolean }) => {
+  const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
   const isCreating = card.id < 0 || Boolean(card.pendingCreation);
   const [isEditing, setIsEditing] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [value, setValue] = useState(card.title);
+  const [isPreparingDuplicate, setIsPreparingDuplicate] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(card.title);
+  const value = isEditing ? draftTitle : card.title;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const statusCheckboxRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const duplicateInProgressRef = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -52,7 +61,12 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateCardStatus(year, month, card.id);
   const { mutate: updateColor, isPending: isUpdatingColor } = useUpdateCardColor(year, month, card.id);
   const { mutate: deleteCard, isPending: isDeleting } = useDeleteCard(year, month, card.id);
-  const isSaving = isCreating || isBeingMoved || isUpdatingTitle || isUpdatingStatus || isUpdatingColor || isDeleting;
+  const { mutateAsync: ensureMonthColumn, isPending: isEnsuringMonth } = useEnsureMonthColumn();
+  const { mutateAsync: createCard, isPending: isDuplicating } = useCreateCard(nextMonth.year, nextMonth.month, {
+    success: "Card duplicated",
+    error: "Could not duplicate card",
+  });
+  const isSaving = isCreating || isBeingMoved || isUpdatingTitle || isUpdatingStatus || isUpdatingColor || isDeleting || isEnsuringMonth || isPreparingDuplicate || isDuplicating;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
@@ -76,10 +90,6 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   }, [isEditing]);
 
   useEffect(() => {
-    setValue(card.title);
-  }, [card.title]);
-
-  useEffect(() => {
     if (statusCheckboxRef.current) {
       statusCheckboxRef.current.indeterminate = isStatusInProgress;
     }
@@ -87,10 +97,37 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
 
   const handleStatusToggle = () => updateStatus(getNextStatus(card.status));
 
+  const handleDuplicate = async () => {
+    if (duplicateInProgressRef.current) return;
+    duplicateInProgressRef.current = true;
+    setIsPreparingDuplicate(true);
+
+    try {
+      const column = await ensureMonthColumn(nextMonth);
+      const monthCards = await queryClient.fetchQuery({
+        queryKey: cardsKey(nextMonth.year, nextMonth.month),
+        queryFn: () => boardApi.getCards(nextMonth.year, nextMonth.month),
+      });
+      const nextOrder = Math.max(0, ...monthCards.cards.map((currentCard) => currentCard.order)) + 1;
+      const payload: { column_id: number; order: number; title: string; color: CardColor } = {
+        column_id: column.id,
+        order: nextOrder,
+        title: card.title,
+        color: card.color ?? "slate",
+      };
+      setIsMenuOpen(false);
+      await createCard(payload).catch(() => undefined);
+    } catch {
+      toast.error("Could not duplicate card");
+    } finally {
+      duplicateInProgressRef.current = false;
+      setIsPreparingDuplicate(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!value.trim() || value === card.title) {
       setIsEditing(false);
-      setValue(card.title);
       return;
     }
     await updateTitle(value.trim());
@@ -103,13 +140,18 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
       style={style}
       {...(preview ? {} : sortableAttributes)}
       {...(preview ? {} : listeners)}
+      onKeyDown={(event) => {
+        if (!preview && event.target === event.currentTarget) {
+          listeners?.onKeyDown?.(event);
+        }
+      }}
       role={undefined}
       aria-busy={isSaving}
       aria-label={`Roadmap card: ${card.title || "Untitled"}`}
       aria-disabled={isMoving || isSaving}
       tabIndex={preview || isMoving || isSaving ? -1 : 0}
       className={cn(
-        "group touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        "group min-w-0 w-full touch-none rounded-md border border-border/80 bg-card p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-ring",
         ({ slate: "border-l-4 border-l-slate-400", teal: "border-l-4 border-l-teal-500", green: "border-l-4 border-l-green-500", yellow: "border-l-4 border-l-yellow-400", blue: "border-l-4 border-l-blue-500" } as Record<string, string>)[card.color ?? "slate"],
         !isMoving && !isSaving && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
@@ -145,7 +187,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
               <Input
                 ref={inputRef}
                 value={value}
-                onChange={(event) => setValue(event.target.value)}
+                onChange={(event) => setDraftTitle(event.target.value)}
                 onBlur={() => void handleSubmit()}
                 aria-label="Edit card title"
               />
@@ -153,8 +195,11 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
           ) : (
             <button
               type="button"
-              className="w-full truncate text-left text-sm font-medium"
-              onClick={() => setIsEditing(true)}
+              className="w-full whitespace-normal break-words text-left text-sm font-medium"
+              onClick={() => {
+                setDraftTitle(card.title);
+                setIsEditing(true);
+              }}
               disabled={isSaving}
             >
               {card.title || "Untitled"}
@@ -186,6 +231,17 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
             </Button>
             {isMenuOpen && (
               <div role="menu" aria-label="Card options" className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1 rounded-md border border-border bg-card p-2 shadow-lg">
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-label="Duplicate card to next month"
+                  title="Duplicate card to next month"
+                  onClick={() => void handleDuplicate()}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+                <span role="separator" aria-orientation="vertical" className="mx-1 h-5 w-px bg-border" />
                 {cardColors.map((color) => (
                   <button
                     key={color.value}
@@ -201,7 +257,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
                     className={cn("h-4 w-4 rounded-full ring-offset-1 transition-transform hover:scale-125 hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", color.className, (card.color ?? "slate") === color.value && "ring-2 ring-foreground")}
                   />
                 ))}
-                <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+                <span role="separator" aria-orientation="vertical" className="mx-1 h-5 w-px bg-border" />
                 <button
                   type="button"
                   role="menuitem"
