@@ -28,7 +28,11 @@ export const useEnsureMonthColumn = () =>
     mutationFn: ({ year, month }: { year: number; month: number }) => boardApi.ensureColumn(year, month),
   });
 
-export const useCreateCard = (year: number, month: number) => {
+export const useCreateCard = (
+  year: number,
+  month: number,
+  messages = { success: "Card added", error: "Could not create card" },
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -44,7 +48,7 @@ export const useCreateCard = (year: number, month: number) => {
         order: input.order,
         title: input.title ?? "",
         status: "not_started",
-        color: "slate",
+        color: input.color ?? "slate",
         pendingCreation: true,
       };
 
@@ -63,7 +67,7 @@ export const useCreateCard = (year: number, month: number) => {
       if (context?.previous) {
         queryClient.setQueryData(cardsKey(year, month), context.previous);
       }
-      toast.error("Could not create card");
+      toast.error(messages.error);
     },
     onSuccess: (data, _variables, context) => {
       queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
@@ -75,10 +79,13 @@ export const useCreateCard = (year: number, month: number) => {
             .map((card: Card, index: number) => ({ ...card, order: index + 1 })),
         };
       });
-      toast.success("Card added");
+      toast.success(messages.success);
     },
     onSettled: async (data) => {
-      await queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: cardsKey(year, month) }),
+        queryClient.invalidateQueries({ queryKey: ["month-summaries"] }),
+      ]);
       queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) =>
         current ? { ...current, cards: current.cards.map((card) => card.id === data?.id ? { ...card, pendingCreation: false } : card) } : current,
       );

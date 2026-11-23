@@ -2,6 +2,7 @@ import { DndContext, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 
 import { useBoardSensors } from "../src/features/board/dnd";
@@ -12,6 +13,8 @@ const { updateTitleMock } = vi.hoisted(() => ({ updateTitleMock: vi.fn() }));
 
 vi.mock("../src/features/board/hooks/useBoard", () => ({
   useDeleteCard: () => ({ mutate: vi.fn(), isPending: false }),
+  useEnsureMonthColumn: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateCard: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateCardStatus: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateCardColor: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateCardTitle: () => ({ mutateAsync: updateTitleMock, isPending: false }),
@@ -38,7 +41,11 @@ const renderSortableCard = (onDragStart: (event: DragStartEvent) => void) => {
     );
   };
 
-  return render(<TestBoard />);
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <TestBoard />
+    </QueryClientProvider>,
+  );
 };
 
 describe("CardItem keyboard interactions", () => {
