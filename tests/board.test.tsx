@@ -11,15 +11,27 @@ import { cardsKey } from "../src/features/board/hooks/useBoard";
 import type { Card } from "../src/features/board/types";
 import { getConsecutiveMonths, formatMonthLabel } from "../src/utils/date";
 
-const getCardsMock = vi.fn();
-const getMonthSummariesMock = vi.fn();
-const createCardMock = vi.fn();
-const updatePositionMock = vi.fn();
-const updateTitleMock = vi.fn();
-const updateStatusMock = vi.fn();
-const updateColorMock = vi.fn();
-const removeCardMock = vi.fn();
-const getCardMock = vi.fn();
+const {
+  getCardsMock,
+  getMonthSummariesMock,
+  createCardMock,
+  updatePositionMock,
+  updateTitleMock,
+  updateStatusMock,
+  updateColorMock,
+  removeCardMock,
+  getCardMock,
+} = vi.hoisted(() => ({
+  getCardsMock: vi.fn(),
+  getMonthSummariesMock: vi.fn(),
+  createCardMock: vi.fn(),
+  updatePositionMock: vi.fn(),
+  updateTitleMock: vi.fn(),
+  updateStatusMock: vi.fn(),
+  updateColorMock: vi.fn(),
+  removeCardMock: vi.fn(),
+  getCardMock: vi.fn(),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -37,15 +49,15 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
 
 vi.mock("../src/features/board/api", () => ({
   boardApi: {
-    getCards: (...args: any[]) => getCardsMock(...args),
-    getMonthSummaries: (...args: any[]) => getMonthSummariesMock(...args),
-    createCard: (...args: any[]) => createCardMock(...args),
-    updatePosition: (...args: any[]) => updatePositionMock(...args),
-    updateTitle: (...args: any[]) => updateTitleMock(...args),
-    updateStatus: (...args: any[]) => updateStatusMock(...args),
-    updateColor: (...args: any[]) => updateColorMock(...args),
-    removeCard: (...args: any[]) => removeCardMock(...args),
-    getCard: (...args: any[]) => getCardMock(...args),
+    getCards: getCardsMock,
+    getMonthSummaries: getMonthSummariesMock,
+    createCard: createCardMock,
+    updatePosition: updatePositionMock,
+    updateTitle: updateTitleMock,
+    updateStatus: updateStatusMock,
+    updateColor: updateColorMock,
+    removeCard: removeCardMock,
+    getCard: getCardMock,
   },
 }));
 
@@ -67,7 +79,7 @@ describe("Board", () => {
     const [first] = getConsecutiveMonths(new Date(), 1);
     const previous = getConsecutiveMonths(new Date(first.year, first.month - 2, 1), 1)[0];
     getMonthSummariesMock.mockResolvedValue({ [`${previous.year}-${previous.month}`]: { year: previous.year, month: previous.month, card_count: 3 } });
-    getCardsMock.mockImplementation(async (year: number, month: number) => ({ column: null, cards: [] }));
+    getCardsMock.mockImplementation(async () => ({ column: null, cards: [] }));
     renderWithProviders(<Board />, { route: "/board" });
     const monthButton = await screen.findByRole("button", { name: new RegExp(`${previous.year}-${previous.month}: 3 cards`) });
     expect(monthButton).toHaveTextContent("3");
@@ -438,14 +450,11 @@ describe("Board", () => {
     });
 
     const moveSpy = vi.fn().mockResolvedValue(undefined);
-    const toastSpy = { error: vi.fn(), success: vi.fn() } as any;
-
     const handler = createHandleDragEnd({
       queryClient,
       moveCard: async (payload) => {
         moveSpy(payload);
       },
-      toastImpl: toastSpy,
     });
 
     const event = {

@@ -23,7 +23,7 @@ export const RegisterForm = () => {
   const onSubmit = async (values: RegisterInput) => {
     try {
       await mutateAsync(values);
-    } catch (error) {
+    } catch {
       // handled by mutation onError
     }
   };

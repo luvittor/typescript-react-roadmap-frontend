@@ -7,11 +7,13 @@ import { RegisterForm } from "../src/features/auth/components/RegisterForm";
 import { renderWithProviders, resetAuthStore } from "./test-utils";
 import { useAuthStore } from "../src/store/auth-store";
 
-const loginMock = vi.fn();
-const registerMock = vi.fn();
-const logoutMock = vi.fn();
-const meMock = vi.fn();
-const pingMock = vi.fn();
+const { loginMock, registerMock, logoutMock, meMock, pingMock } = vi.hoisted(() => ({
+  loginMock: vi.fn(),
+  registerMock: vi.fn(),
+  logoutMock: vi.fn(),
+  meMock: vi.fn(),
+  pingMock: vi.fn(),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -20,11 +22,11 @@ vi.mock("sonner", () => ({
 
 vi.mock("../src/features/auth/api", () => ({
   authApi: {
-    login: (...args: any[]) => loginMock(...args),
-    register: (...args: any[]) => registerMock(...args),
-    logout: (...args: any[]) => logoutMock(...args),
-    me: (...args: any[]) => meMock(...args),
-    ping: (...args: any[]) => pingMock(...args),
+    login: loginMock,
+    register: registerMock,
+    logout: logoutMock,
+    me: meMock,
+    ping: pingMock,
   },
 }));
 

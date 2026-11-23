@@ -27,7 +27,8 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   const isCreating = card.id < 0 || Boolean(card.pendingCreation);
   const [isEditing, setIsEditing] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [value, setValue] = useState(card.title);
+  const [draftTitle, setDraftTitle] = useState(card.title);
+  const value = isEditing ? draftTitle : card.title;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const statusCheckboxRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -76,10 +77,6 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   }, [isEditing]);
 
   useEffect(() => {
-    setValue(card.title);
-  }, [card.title]);
-
-  useEffect(() => {
     if (statusCheckboxRef.current) {
       statusCheckboxRef.current.indeterminate = isStatusInProgress;
     }
@@ -90,7 +87,6 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
   const handleSubmit = async () => {
     if (!value.trim() || value === card.title) {
       setIsEditing(false);
-      setValue(card.title);
       return;
     }
     await updateTitle(value.trim());
@@ -145,7 +141,7 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
               <Input
                 ref={inputRef}
                 value={value}
-                onChange={(event) => setValue(event.target.value)}
+                onChange={(event) => setDraftTitle(event.target.value)}
                 onBlur={() => void handleSubmit()}
                 aria-label="Edit card title"
               />
@@ -154,7 +150,10 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
             <button
               type="button"
               className="w-full truncate text-left text-sm font-medium"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                setDraftTitle(card.title);
+                setIsEditing(true);
+              }}
               disabled={isSaving}
             >
               {card.title || "Untitled"}

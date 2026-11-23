@@ -9,6 +9,8 @@ import type { CardStatus } from "../../../utils/status";
 export const cardsKey = (year: number, month: number) => ["cards", year, month] as const;
 export const createCardMutationKey = ["create-card"] as const;
 
+type CachedMonthCards = { column: { id: number } | null; cards: Card[] };
+
 export const useMonthCards = (year: number, month: number) =>
   useQuery({
     queryKey: cardsKey(year, month),
@@ -34,9 +36,7 @@ export const useCreateCard = (year: number, month: number) => {
     mutationFn: boardApi.createCard,
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
-      const previous = queryClient.getQueryData<{ column: { id: number }; cards: Card[] }>(
-        cardsKey(year, month),
-      );
+      const previous = queryClient.getQueryData<CachedMonthCards>(cardsKey(year, month));
 
       const optimistic: Card = {
         id: Math.random() * -100000,
@@ -48,7 +48,7 @@ export const useCreateCard = (year: number, month: number) => {
         pendingCreation: true,
       };
 
-      queryClient.setQueryData(cardsKey(year, month), (current: any) => {
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
         const column = current?.column ?? { id: input.column_id };
         const cards: Card[] = current?.cards ?? [];
         const shifted = cards.map((card) => ({ ...card, order: card.order + 1 }));
@@ -67,7 +67,7 @@ export const useCreateCard = (year: number, month: number) => {
       toast.error("Could not create card");
     },
     onSuccess: (data, _variables, context) => {
-      queryClient.setQueryData(cardsKey(year, month), (current: any) => {
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
         if (!current) return current;
         return {
           ...current,
@@ -80,7 +80,7 @@ export const useCreateCard = (year: number, month: number) => {
     },
     onSettled: async (data) => {
       await queryClient.invalidateQueries({ queryKey: cardsKey(year, month) });
-      queryClient.setQueryData<{ column: unknown; cards: Card[] }>(cardsKey(year, month), (current) =>
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) =>
         current ? { ...current, cards: current.cards.map((card) => card.id === data?.id ? { ...card, pendingCreation: false } : card) } : current,
       );
     },
@@ -95,10 +95,8 @@ export const useUpdateCardTitle = (year: number, month: number, id: number) => {
     onMutate: async (title) => {
       cardTitleSchema.parse({ title });
       await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
-      const previous = queryClient.getQueryData<{ column: any; cards: Card[] }>(
-        cardsKey(year, month),
-      );
-      queryClient.setQueryData(cardsKey(year, month), (current: any) => {
+      const previous = queryClient.getQueryData<CachedMonthCards>(cardsKey(year, month));
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
         if (!current) return current;
         return {
           ...current,
@@ -131,10 +129,8 @@ export const useUpdateCardStatus = (year: number, month: number, id: number) => 
     mutationFn: (status: CardStatus) => boardApi.updateStatus(id, status),
     onMutate: async (status) => {
       await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
-      const previous = queryClient.getQueryData<{ column: any; cards: Card[] }>(
-        cardsKey(year, month),
-      );
-      queryClient.setQueryData(cardsKey(year, month), (current: any) => {
+      const previous = queryClient.getQueryData<CachedMonthCards>(cardsKey(year, month));
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
         if (!current) return current;
         return {
           ...current,
@@ -167,8 +163,8 @@ export const useUpdateCardColor = (year: number, month: number, id: number) => {
     mutationFn: (color: CardColor) => boardApi.updateColor(id, color),
     onMutate: async (color) => {
       await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
-      const previous = queryClient.getQueryData<{ column: any; cards: Card[] }>(cardsKey(year, month));
-      queryClient.setQueryData(cardsKey(year, month), (current: any) => current ? ({
+      const previous = queryClient.getQueryData<CachedMonthCards>(cardsKey(year, month));
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => current ? ({
         ...current,
         cards: current.cards.map((card: Card) => card.id === id ? { ...card, color } : card),
       }) : current);
@@ -189,10 +185,8 @@ export const useDeleteCard = (year: number, month: number, id: number) => {
     mutationFn: () => boardApi.removeCard(id),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: cardsKey(year, month) });
-      const previous = queryClient.getQueryData<{ column: any; cards: Card[] }>(
-        cardsKey(year, month),
-      );
-      queryClient.setQueryData(cardsKey(year, month), (current: any) => {
+      const previous = queryClient.getQueryData<CachedMonthCards>(cardsKey(year, month));
+      queryClient.setQueryData<CachedMonthCards>(cardsKey(year, month), (current) => {
         if (!current) return current;
         return {
           ...current,

@@ -22,7 +22,7 @@ export const LoginForm = () => {
   const onSubmit = async (values: LoginInput) => {
     try {
       await mutateAsync(values);
-    } catch (error) {
+    } catch {
       // handled by mutation onError
     }
   };
