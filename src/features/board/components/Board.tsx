@@ -19,6 +19,14 @@ export const isNearMonthStripEnd = ({
 }: Pick<HTMLElement, "scrollLeft" | "clientWidth" | "scrollWidth">) =>
   scrollLeft + clientWidth >= scrollWidth - 500;
 
+const isOutsideHorizontalViewport = (viewport: HTMLElement, target: HTMLElement) => {
+  const viewportRect = viewport.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  return targetRect.right <= viewportRect.left || targetRect.left >= viewportRect.right;
+};
+
+const noopCurrentMonthOutsideChange = () => {};
+
 const MonthQueryColumn = ({
   month,
   isCurrent,
@@ -167,7 +175,7 @@ export const isUnchangedDrop = (event: DragEndEvent, queryClient: QueryClient) =
   return from === target;
 };
 
-export const Board = () => {
+export const Board = ({ onCurrentMonthOutsideChange = noopCurrentMonthOutsideChange }: { onCurrentMonthOutsideChange?: (isOutside: boolean) => void }) => {
   const [months, setMonths] = useState<MonthKey[]>(() => getConsecutiveMonths(new Date(), 6));
   const [collapsedMonths, setCollapsedMonths] = useState<MonthKey[]>(() => {
     const date = new Date();
@@ -177,10 +185,8 @@ export const Board = () => {
   const lastExpandedFrom = useRef<MonthKey | null>(null);
   const lastCollapsedFrom = useRef<MonthKey | null>(null);
   const isPrependingCollapsed = useRef(false);
-  const current = months.find(({ year, month }) => {
-    const now = new Date();
-    return year === now.getFullYear() && month === now.getMonth() + 1;
-  });
+  const now = new Date();
+  const current = months.find(({ year, month }) => year === now.getFullYear() && month === now.getMonth() + 1);
   const sensors = useBoardSensors();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -189,13 +195,30 @@ export const Board = () => {
   const moveInProgress = useRef(false);
   const queryClient = useQueryClient();
   const { mutateAsync: moveCardMutation } = useMoveCard();
-  const now = new Date();
   const lastCollapsedMonth = collapsedMonths[collapsedMonths.length - 1];
   const previousMonth = getConsecutiveMonths(new Date(now.getFullYear(), now.getMonth() - 1, 1), 1)[0]!;
   const summaryEnd = lastCollapsedMonth && lastCollapsedMonth.year * 12 + lastCollapsedMonth.month > previousMonth.year * 12 + previousMonth.month ? lastCollapsedMonth : previousMonth;
   const summaryStart = collapsedMonths[0] ?? summaryEnd;
   const summaries = useMonthSummaries(summaryStart, summaryEnd);
   const timelineMonths = [...collapsedMonths, ...months].sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
+
+  const reportCurrentMonthVisibility = useCallback(() => {
+    const strip = monthStripRef.current;
+    const currentMonth = strip?.querySelector<HTMLElement>("#roadmap-current-month");
+    onCurrentMonthOutsideChange(Boolean(strip && currentMonth && isOutsideHorizontalViewport(strip, currentMonth)));
+  }, [onCurrentMonthOutsideChange]);
+
+  useEffect(() => {
+    const strip = monthStripRef.current;
+    if (!strip) return;
+    reportCurrentMonthVisibility();
+    strip.addEventListener("scroll", reportCurrentMonthVisibility);
+    window.addEventListener("resize", reportCurrentMonthVisibility);
+    return () => {
+      strip.removeEventListener("scroll", reportCurrentMonthVisibility);
+      window.removeEventListener("resize", reportCurrentMonthVisibility);
+    };
+  }, [months, collapsedMonths, reportCurrentMonthVisibility]);
 
   const expandMonth = (month: MonthKey) => {
     const strip = monthStripRef.current;
@@ -300,10 +323,11 @@ export const Board = () => {
         <div data-testid="month-strip" ref={monthStripRef} onScroll={handleMonthScroll} className="flex min-w-0 flex-1 items-stretch gap-0 overflow-x-auto border-y border-border/70 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {timelineMonths.map((month) => {
             const isCollapsed = collapsedMonths.some((item) => item.year === month.year && item.month === month.month);
+            const isCurrentMonth = month.year === now.getFullYear() && month.month === now.getMonth() + 1;
             if (!isCollapsed) return <MonthQueryColumn key={`${month.year}-${month.month}`} month={month} isCurrent={month.year === current?.year && month.month === current?.month} isMoving={isMoving || isCreating} movingCardId={movingCardId} onCollapse={() => collapseMonth(month)} />;
             const count = summaries.data?.[`${month.year}-${month.month}`]?.card_count ?? 0;
             const totalLabel = summaries.isFetching ? "loading card total" : `${count} cards`;
-            return <button key={`${month.year}-${month.month}`} type="button" aria-label={`${month.year}-${month.month}: ${totalLabel}`} className="relative flex w-12 flex-none items-center justify-center border-r border-border/70 hover:bg-muted" onClick={() => {
+            return <button key={`${month.year}-${month.month}`} id={isCurrentMonth ? "roadmap-current-month" : undefined} type="button" aria-label={`${month.year}-${month.month}: ${totalLabel}`} className="relative flex w-12 flex-none items-center justify-center border-r border-border/70 hover:bg-muted" onClick={() => {
               expandMonth(month);
             }}><span className="absolute top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-4">{summaries.isFetching ? <LoaderCircle className="h-3 w-3 animate-spin" role="status" aria-label="Loading card total" /> : count}</span><span className="[writing-mode:vertical-rl] rotate-180 text-xs">{new Date(month.year, month.month - 1).toLocaleDateString(undefined, { month: "short", year: "2-digit" })}</span></button>;
           })}

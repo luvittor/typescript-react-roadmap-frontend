@@ -10,6 +10,7 @@ import { useAuthStore } from "../src/store/auth-store";
 import { cardsKey } from "../src/features/board/hooks/useBoard";
 import type { Card } from "../src/features/board/types";
 import { getConsecutiveMonths, formatMonthLabel } from "../src/utils/date";
+import { App } from "../src/App";
 
 const {
   getCardsMock,
@@ -22,6 +23,7 @@ const {
   updateColorMock,
   removeCardMock,
   getCardMock,
+  logoutMock,
 } = vi.hoisted(() => ({
   getCardsMock: vi.fn(),
   getMonthSummariesMock: vi.fn(),
@@ -33,6 +35,7 @@ const {
   updateColorMock: vi.fn(),
   removeCardMock: vi.fn(),
   getCardMock: vi.fn(),
+  logoutMock: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -64,6 +67,16 @@ vi.mock("../src/features/board/api", () => ({
   },
 }));
 
+vi.mock("../src/features/auth/api", () => ({
+  authApi: {
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: logoutMock,
+    me: vi.fn(),
+    ping: vi.fn(),
+  },
+}));
+
 describe("Board", () => {
   beforeEach(() => {
     resetAuthStore();
@@ -77,6 +90,44 @@ describe("Board", () => {
     expect(isNearMonthStripEnd({ scrollLeft: 0, clientWidth: 2600, scrollWidth: 2040 })).toBe(true);
     expect(isNearMonthStripEnd({ scrollLeft: 0, clientWidth: 1200, scrollWidth: 2040 })).toBe(false);
     expect(isNearMonthStripEnd({ scrollLeft: 400, clientWidth: 1200, scrollWidth: 2040 })).toBe(true);
+  });
+
+  it("shows a current-month anchor when the month leaves the strip and updates the URL on click", async () => {
+    let currentIsOutside = false;
+    const rect = (left: number, right: number) => ({ left, right, top: 0, bottom: 100, width: right - left, height: 100, x: left, y: 0, toJSON: () => ({}) }) as DOMRect;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.dataset.testid === "month-strip") return rect(0, 400);
+      if (this.id === "roadmap-current-month") return currentIsOutside ? rect(-350, -10) : rect(10, 350);
+      return rect(0, 0);
+    });
+    getCardsMock.mockResolvedValue({ column: null, cards: [] });
+    const { history } = renderWithProviders(<App />, { route: "/board" });
+
+    const shortcut = screen.queryByRole("link", { name: "Go to current month" });
+    expect(shortcut).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveClass("py-0");
+    const signOutButton = screen.getByRole("button", { name: "Sign out" });
+    expect(signOutButton).toHaveClass("border");
+    expect(signOutButton.querySelector("svg")).toBeInTheDocument();
+    expect(signOutButton.textContent).toBe("");
+
+    currentIsOutside = true;
+    fireEvent.scroll(screen.getByTestId("month-strip"));
+    const currentShortcut = await screen.findByRole("link", { name: "Go to current month" });
+    expect(currentShortcut).toHaveClass("border");
+    expect(currentShortcut).toHaveAttribute("href", "#roadmap-current-month");
+    expect(currentShortcut.querySelector("svg")).toBeInTheDocument();
+    await userEvent.setup().click(currentShortcut);
+    expect(window.location.hash).toBe("#roadmap-current-month");
+
+    currentIsOutside = false;
+    fireEvent.scroll(screen.getByTestId("month-strip"));
+    await waitFor(() => expect(screen.queryByRole("link", { name: "Go to current month" })).not.toBeInTheDocument());
+
+    logoutMock.mockResolvedValue(undefined);
+    await userEvent.setup().click(signOutButton);
+    await waitFor(() => expect(logoutMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(history.location.pathname).toBe("/login"));
   });
 
   it("opens only the selected collapsed month and preserves the timeline scroll position", async () => {
@@ -309,13 +360,19 @@ describe("Board", () => {
     await user.click(statusCheckbox);
     await waitFor(() => expect(updateStatusMock).toHaveBeenCalledWith(73, "in_progress"));
     await waitFor(() => expect(statusCheckbox).toHaveProperty("indeterminate", true));
-    expect(statusCheckbox).toHaveClass("indeterminate:bg-sky-500");
-    expect(statusCheckbox.closest("label")?.querySelector("span")).toHaveClass("h-0.5", "w-2", "bg-white");
+    expect(statusCheckbox).toHaveClass(
+      "indeterminate:border-sky-400",
+      "indeterminate:bg-[linear-gradient(90deg,var(--color-sky-500)_50%,transparent_50%)]",
+    );
+    expect(statusCheckbox.closest("label")?.querySelector("span")).not.toBeInTheDocument();
+    expect(statusCheckbox.closest("label")?.querySelector("svg")).not.toBeInTheDocument();
     await waitFor(() => expect(statusCheckbox).toBeEnabled());
 
     await user.click(statusCheckbox);
     await waitFor(() => expect(updateStatusMock).toHaveBeenCalledWith(73, "completed"));
     await waitFor(() => expect(statusCheckbox).toBeChecked());
+    expect(statusCheckbox).toHaveClass("checked:bg-sky-500");
+    expect(statusCheckbox.closest("label")?.querySelector("svg")).toBeInTheDocument();
     expect(statusCheckbox).not.toHaveProperty("indeterminate", true);
     await waitFor(() => expect(statusCheckbox).toBeEnabled());
 

@@ -22,6 +22,7 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
 
 import { MonthColumn } from "../src/features/board/components/MonthColumn";
 import { renderWithProviders } from "./test-utils";
+import { formatMonthLabel } from "../src/utils/date";
 
 describe("MonthColumn drop target", () => {
   it("attaches the month drop target to the full-height column, not only the card list", () => {
@@ -40,7 +41,7 @@ describe("MonthColumn drop target", () => {
       />,
     );
 
-    const column = screen.getByRole("region", { name: "Nov 26" });
+    const column = screen.getByRole("region", { name: formatMonthLabel({ year: 2026, month: 11 }) });
     const cardList = screen.getByRole("list");
 
     expect(column).toHaveAttribute("data-drop-zone", "drop-2026-11");

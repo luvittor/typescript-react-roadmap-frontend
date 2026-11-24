@@ -80,6 +80,7 @@ export const MonthColumn = ({
   return (
     <section
       ref={setNodeRef}
+      id={isCurrent ? "roadmap-current-month" : undefined}
       aria-labelledby={`column-${year}-${month}`}
       className={`flex w-[min(340px,86vw)] flex-none self-stretch flex-col gap-3 border-r border-border/70 px-4 py-4 transition-colors sm:px-5 ${isTarget ? "bg-primary/10 ring-2 ring-inset ring-primary" : isCurrent ? "bg-accent/30" : "bg-transparent"}`}
     >
