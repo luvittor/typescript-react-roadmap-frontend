@@ -168,10 +168,9 @@ export const CardItem = ({ card, year, month, isMoving, isBeingMoved, preview = 
             aria-label={`Status: ${getStatusLabel(card.status)}. Activate to mark ${getStatusLabel(getNextStatus(card.status))}`}
             title={getStatusLabel(card.status)}
             className={cn(
-              "h-4 w-4 appearance-none rounded-[4px] border border-foreground/80 bg-background transition hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring checked:border-sky-500 checked:bg-sky-500 indeterminate:border-sky-500 indeterminate:bg-sky-500",
+              "h-4 w-4 appearance-none rounded-[4px] border border-foreground/80 bg-background transition hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring checked:border-sky-500 checked:bg-sky-500 indeterminate:border-sky-400 indeterminate:bg-[linear-gradient(90deg,var(--color-sky-500)_50%,transparent_50%)]",
             )}
           />
-          {isStatusInProgress && <span className="pointer-events-none absolute h-0.5 w-2 rounded-full bg-white" aria-hidden="true" />}
           {isStatusCompleted && <Check className="pointer-events-none absolute h-3 w-3 text-white" aria-hidden="true" />}
         </label>
 
